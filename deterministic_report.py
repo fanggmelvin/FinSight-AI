@@ -13,6 +13,9 @@ def build_facts(registry):
             n = Decimal(str(value))
             if not n.is_finite():
                 continue
+            if record.get('category') == 'Financial Anomaly' and field == 'value':
+                facts[f'{eid}.{field}'] = f'{n:+.2f} pp' if record['values'].get('category') == 'Margin Compression' else f'{n:+.2%}'
+                continue
             percent = field in {'growth','variance_pct','revenue_share'} or 'margin' in field or field.endswith(('_pct','_growth'))
             if percent:
                 shown = f'{n*100:,.2f}' + (' pp' if 'change' in field else '%')
@@ -94,7 +97,9 @@ def parse_structured_commentary(raw, registry):
         if priority not in ('High', 'Medium', 'Low') or any(not isinstance(t, str) or not t.strip() or '\n' in t or '[' in t or ']' in t for t in (observation, action)):
             errors.append('Invalid commentary fields'); continue
         line = f'- **{priority} priority:** {observation} **Proposed action:** {action} ' + ' '.join(f'[{i}]' for i in dict.fromkeys(ids))
-        error = commentary_diagnostic(line, registry)
+        from skill_workflow import qualitative_diagnostic, mask_cited_anomaly_dates
+        cited = [r for r in registry.records if r['evidence_id'] in ids]
+        error = commentary_diagnostic(mask_cited_anomaly_dates(line, cited), registry) or qualitative_diagnostic(observation, cited)
         if error:
             errors.append(error); continue
         lines.append(line)

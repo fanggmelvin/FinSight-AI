@@ -98,6 +98,15 @@ def show_executive_analysis(result):
             for col,(t,f) in zip(st.columns(4),specs):
                 v=summary[t]['values'].get(f)
                 col.metric(t, format_percent(v) if f=='gross_margin' else (f'{v:,.2f}' if v is not None else 'N/A'))
+    if 'anomaly-detection' in result.get('active_skills', []):
+        from skill_workflow import anomaly_rows
+        st.subheader('Rule-based financial anomalies')
+        flags = anomaly_rows(records)
+        if flags:
+            st.dataframe(pd.DataFrame(flags), hide_index=True, width='stretch')
+        else:
+            st.info('No rule-based anomalies detected in the selected evidence.')
+        st.caption('High severity flags precede review flags. Flags are investigation leads, not established causes.')
     for group, data in key_tables(records).items():
         frame = pd.DataFrame(data)
         route = result.get('route',{})
@@ -415,7 +424,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.caption("Version 0.14.0")
+    st.caption("Version 0.14.2")
     st.caption("Independent Portfolio Project")
 
 
