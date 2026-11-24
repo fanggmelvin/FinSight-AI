@@ -215,7 +215,11 @@ def analyze_question(
     usage = None
     raw = None
     diagnostic = None
-    if findings:
+    offline = os.getenv("FINSIGHT_LIVE_AI", "1") != "1"
+    if offline:
+        selected_model = "Local rule-based demo (no AI request)"
+        diagnostic = "Public demo: live AI disabled; local recommendations used."
+    if findings and not offline:
         try:
             client = get_client()
             schema = {"type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{"finding_id":{"type":"string","enum":[f['id'] for f in findings]},"action_id":{"type":"string","enum":["a","b"]}},"required":["finding_id","action_id"],"additionalProperties":False}}},"required":["items"],"additionalProperties":False}

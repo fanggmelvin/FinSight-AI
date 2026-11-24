@@ -1,5 +1,10 @@
 
 import hashlib
+import os
+from demo_dataset import load_demo_state
+
+# Public-safe default; local live AI requires explicit opt-in.
+os.environ.setdefault("FINSIGHT_LIVE_AI", "0")
 import io
 
 import pandas as pd
@@ -401,6 +406,14 @@ def show_table(df):
 # SIDEBAR
 # ==========================================
 
+if not st.session_state.get("demo_initialized"):
+    st.session_state["demo_initialized"] = True
+    if "financial_data" not in st.session_state:
+        try:
+            st.session_state.update(load_demo_state())
+        except Exception:
+            st.warning("Sample data unavailable. Upload a financial file to continue.")
+
 with st.sidebar:
 
     st.title("FinSight AI")
@@ -444,7 +457,14 @@ with st.sidebar:
 
     st.divider()
 
-    st.caption("Version 0.16.0")
+    if st.button("Load sample dataset"):
+        clear_validation()
+        st.session_state.update(load_demo_state())
+        st.session_state.pop("executive_report", None)
+        st.rerun()
+    if os.getenv("FINSIGHT_LIVE_AI") != "1":
+        st.caption("Public demo: local analysis only; no API calls.")
+    st.caption("Version 0.16.0 | Demo")
     st.caption("Independent Portfolio Project")
 
 
@@ -1437,7 +1457,7 @@ elif page == "AI Copilot":
     df = apply_filters(require_data(), "copilot")
     source = st.session_state["file_name"]
     sheet = st.session_state["sheet_name"]
-    st.info("Financial calculations are performed locally. Aggregated evidence, source labels and your question are sent to OpenAI when you submit a question. Financial figures are rendered locally; no additional AI verification request is made. Use only data you are authorized to share.")
+    st.info("Financial calculations are performed locally. Aggregated evidence, source labels and your question are sent to OpenAI when you submit a question. Financial figures are rendered locally; no additional AI verification request is made. Use only data you are authorized to share." if os.getenv("FINSIGHT_LIVE_AI") == "1" else "Public demo: financial calculations and rule-based recommendations run locally. No data is sent to OpenAI and no API key is required.")
 
     mode = st.radio("Analysis mode", ["Automatic", "Financial summary", "Revenue change investigation", "Multi-dimensional investigation"], horizontal=True)
     st.caption("Automatic mode selects evidence using your question and the filtered dataset. Explicit monthly comparisons require both months to be present.")
@@ -1593,7 +1613,7 @@ elif page == "Financial Reports":
     metrics = show_metrics(df)
     st.divider()
     audience = st.selectbox("Report audience", ["Executive leadership", "Finance management", "Board of directors"])
-    st.info("Generating a report sends aggregated financial evidence, source labels and report instructions to OpenAI. Financial figures are rendered locally; no additional AI verification request is made. Use only data you are authorized to share.")
+    st.info("Generating a report sends aggregated financial evidence, source labels and report instructions to OpenAI. Financial figures are rendered locally; no additional AI verification request is made. Use only data you are authorized to share." if os.getenv("FINSIGHT_LIVE_AI") == "1" else "Public demo: financial calculations and rule-based recommendations run locally. No data is sent to OpenAI and no API key is required.")
     scope = (source, sheet, audience, hashlib.sha256(df.to_csv(index=False).encode()).hexdigest())
     if st.session_state.get("report_scope") != scope:
         st.session_state["report_scope"] = scope

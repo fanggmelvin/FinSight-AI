@@ -235,3 +235,7 @@ Built to demonstrate financial analysis, business intelligence, applied AI integ
 
 **Release:** v0.16.0
 
+
+## Public demonstration mode
+
+The hosted app automatically validates and loads 700 sample records from the Microsoft Financial Sample workbook. Custom uploads remain available. The public demo runs local financial calculations and rule-based recommendations without OpenAI requests. For private local live AI use, explicitly set `FINSIGHT_LIVE_AI=1` in the shell before starting Streamlit and configure your own API key. Do not enable this flag on an unrestricted public deployment.
