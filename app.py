@@ -43,6 +43,11 @@ def show_numerical_verification(result):
     if check.get("mode") == "deterministic":
         st.metric("Financial fields rendered from evidence", check.get("rendered_fields", 0))
         st.caption("Additional verification API tokens: 0. Values are rendered locally, not independently audited. AI commentary is not verified for factual entailment.")
+        if check.get("controlled_actions"):
+            st.caption(f"AI-selected actions: {check.get('selected_actions',0)} of {check.get('total_findings',0)} findings. Remaining actions are rule-based.")
+            if check.get("commentary_diagnostic"):
+                st.info(check["commentary_diagnostic"])
+            return
         if not check.get("commentary_accepted"):
             st.warning("AI commentary withheld: " + str(check.get("commentary_diagnostic") or "Output constraints not met"))
         elif check.get("commentary_diagnostic"):
@@ -117,9 +122,9 @@ def show_executive_analysis(result):
         else:
             st.info('No highlights available under the current report rules.')
         st.caption('Priorities are illustrative review rules, not audited materiality thresholds. Segment exposure at or above 75% is flagged high. Lowest margin is a relative ranking, not proof of underperformance.')
-        st.subheader('AI interpretation and proposed actions')
+        st.subheader('Calculated findings and management recommendations')
         st.markdown(result['commentary'] or 'Commentary unavailable; review the calculated evidence.')
-        st.caption('AI commentary is not independently verified. Contributions do not establish causation.')
+        st.caption('Financial findings are calculated locally. AI selects from predefined proposed actions; actions are not established causes or guaranteed outcomes.')
         st.subheader('Supporting financial performance')
     for group, data in key_tables(records).items():
         frame = pd.DataFrame(data)
@@ -154,9 +159,9 @@ def show_executive_analysis(result):
         st.markdown(findings)
         st.caption('Rankings are calculated from available evidence; suggested reviews are not established causes.')
     if not executive:
-        st.subheader('AI interpretation and proposed actions')
+        st.subheader('Calculated findings and management recommendations')
         st.markdown(result['commentary'] or 'Commentary unavailable; review the calculated evidence.')
-        st.caption('AI commentary is not independently verified. Contributions do not establish causation.')
+        st.caption('Financial findings are calculated locally. AI selects from predefined proposed actions; actions are not established causes or guaranteed outcomes.')
     with st.expander('Complete calculated financial evidence'):
         facts = build_facts(SimpleNamespace(records=records))
         for group, rows in report_groups(records).items():
@@ -439,7 +444,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.caption("Version 0.14.4")
+    st.caption("Version 0.15.0")
     st.caption("Independent Portfolio Project")
 
 
