@@ -103,6 +103,7 @@ def parse_structured_commentary(raw, registry):
         if error:
             errors.append(error); continue
         lines.append(line)
+    lines.sort(key=lambda line: next((i for i,p in enumerate(('High','Medium','Low')) if line.startswith(f'- **{p} priority:')), 3))
     return '\n\n'.join(lines), '; '.join(dict.fromkeys(errors)) or None
 
 

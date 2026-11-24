@@ -77,7 +77,8 @@ def show_executive_analysis(result):
     from types import SimpleNamespace
     records = [r for r in result.get('cited_evidence', []) if r]
     total = next((r for r in records if r['title'] == 'Total financial change'), None)
-    st.subheader('Calculated financial evidence')
+    executive = 'executive-reporting' in result.get('active_skills', [])
+    st.subheader('Executive summary' if executive else 'Calculated financial evidence')
     st.caption('Monetary values are in source currency units. Contributions across dimensions must not be added.')
     if total:
         v = total['values']
@@ -107,6 +108,19 @@ def show_executive_analysis(result):
         else:
             st.info('No rule-based anomalies detected in the selected evidence.')
         st.caption('High severity flags precede review flags. Flags are investigation leads, not established causes.')
+    if executive:
+        from skill_workflow import executive_risks
+        st.subheader('Material financial risks and management action plan')
+        risks = executive_risks(records)
+        if risks:
+            st.dataframe(pd.DataFrame(risks), hide_index=True, width='stretch')
+        else:
+            st.info('No highlights available under the current report rules.')
+        st.caption('Priorities are illustrative review rules, not audited materiality thresholds. Segment exposure at or above 75% is flagged high. Lowest margin is a relative ranking, not proof of underperformance.')
+        st.subheader('AI interpretation and proposed actions')
+        st.markdown(result['commentary'] or 'Commentary unavailable; review the calculated evidence.')
+        st.caption('AI commentary is not independently verified. Contributions do not establish causation.')
+        st.subheader('Supporting financial performance')
     for group, data in key_tables(records).items():
         frame = pd.DataFrame(data)
         route = result.get('route',{})
@@ -139,9 +153,10 @@ def show_executive_analysis(result):
         st.subheader('Calculated management insights')
         st.markdown(findings)
         st.caption('Rankings are calculated from available evidence; suggested reviews are not established causes.')
-    st.subheader('AI interpretation and proposed actions')
-    st.markdown(result['commentary'] or 'Commentary unavailable; review the calculated evidence.')
-    st.caption('AI commentary is not independently verified. Contributions do not establish causation.')
+    if not executive:
+        st.subheader('AI interpretation and proposed actions')
+        st.markdown(result['commentary'] or 'Commentary unavailable; review the calculated evidence.')
+        st.caption('AI commentary is not independently verified. Contributions do not establish causation.')
     with st.expander('Complete calculated financial evidence'):
         facts = build_facts(SimpleNamespace(records=records))
         for group, rows in report_groups(records).items():
@@ -424,7 +439,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.caption("Version 0.14.2")
+    st.caption("Version 0.14.3")
     st.caption("Independent Portfolio Project")
 
 

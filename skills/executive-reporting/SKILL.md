@@ -11,3 +11,5 @@ Prioritize material findings across performance, profitability and exposure when
 Lead with material risks and named business units. Separate monthly movements from annual comparisons; annual totals alone cannot establish growth.
 
 Follow the application output schema and mandatory controls.
+
+Address negative segment profitability, combined exposure to leading segments, severe monthly deterioration and relative product margin risks when present. Name the entities without copying figures. Do not call concentration diversification merely because several entities contribute. Compact evidence omits redundant fields; never infer missing source data from omitted fields. Cite only records needed for each observation.

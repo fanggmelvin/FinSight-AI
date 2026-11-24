@@ -11,3 +11,5 @@ Treat rule-based flags as investigation leads, not proof of fraud or error. Dist
 Address negative revenue flags and margin compression first; name months without year digits. Distinguish positive revenue flags from losses. Cover related flags together when appropriate.
 
 Follow the application output schema and mandatory controls.
+
+Flags are a subset of the financial dataset. Never claim underlying margin or revenue data is absent merely because a corresponding flag is absent. Describe only observed flags and propose investigations.
