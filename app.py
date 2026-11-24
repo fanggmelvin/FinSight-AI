@@ -415,7 +415,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.caption("Version 0.13.1")
+    st.caption("Version 0.14.0")
     st.caption("Independent Portfolio Project")
 
 
@@ -1454,6 +1454,8 @@ elif page == "AI Copilot":
                 inv = result["investigation"]
                 st.caption(inv["note"])
                 st.dataframe([{"Dimension": d, "Net revenue change": round(b["net_change"], 2), "Reconciliation difference": round(b["reconciliation_difference"], 2)} for d,b in inv["dimensions"].items()])
+        if result.get("active_skills"):
+            st.caption("Active financial skills: " + ", ".join(result["active_skills"]))
         show_executive_analysis(result)
         show_numerical_verification(result)
         verification = result["verification"]
@@ -1587,6 +1589,8 @@ elif page == "Financial Reports":
         records = [r for r in result["cited_evidence"] if r]
         st.divider()
         st.subheader("Executive Report — Draft for Review")
+        if result.get("active_skills"):
+            st.caption("Active financial skills: " + ", ".join(result["active_skills"]))
         show_executive_analysis(result)
         show_numerical_verification(result)
         if verification["passed"]:
