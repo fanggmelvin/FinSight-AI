@@ -1,5 +1,5 @@
 import json
-from commentary_engine import findings_for, render_findings
+from finsight.commentary_engine import findings_for, render_findings
 
 def record(i,name,margin,share):
     return dict(evidence_id=i,title='Segment: '+name,category='Segment Performance',values=dict(gross_margin=margin,revenue_share=share))

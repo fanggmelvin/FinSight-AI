@@ -1,8 +1,8 @@
 """Controlled commentary: local facts and allowlisted, conditional actions."""
 import re
 import json
-from deterministic_report import deterministic_insights
-from skill_workflow import anomaly_rows
+from finsight.deterministic_report import deterministic_insights
+from finsight.skill_workflow import anomaly_rows
 
 ACTIONS = {
     'pricing': 'Evaluate pricing and discount sensitivity before changing commercial terms.',

@@ -1,4 +1,4 @@
-from claim_mapping import normalize_claims, uncovered_numbers
+from finsight.claim_mapping import normalize_claims, uncovered_numbers
 import pytest
 class Registry:
     def get(self, key):

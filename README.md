@@ -203,17 +203,17 @@ Release validation on the developer's Windows environment: **195 passed in 1.58 
 | Module | Responsibility |
 |---|---|
 | `app.py` | Streamlit interface |
-| `data_validator.py` | Input normalization and validation |
-| `finance_engine.py` | Financial calculations |
-| `evidence_engine.py` | Structured financial evidence |
-| `investigation_engine.py`, `investigation_bridge.py` | Contribution investigations |
-| `question_router.py`, `reliability.py` | Routing and safeguards |
-| `skill_engine.py`, `skills/`, `skill_workflow.py` | Bundled skill selection and workflow utilities |
-| `commentary_engine.py`, `narrative_engine.py` | Calculated findings, themes and approved action plans |
-| `ai_engine.py` | OpenAI integration and selection validation |
-| `deterministic_report.py` | Local financial report rendering |
-| `verification_engine.py`, `claim_mapping.py` | Verification utilities |
-| `test_*.py` | Test suite and connection diagnostic |
+| `finsight/data_validator.py` | Input normalization and validation |
+| `finsight/finance_engine.py` | Financial calculations |
+| `finsight/evidence_engine.py` | Structured financial evidence |
+| `finsight/investigation_engine.py`, `finsight/investigation_bridge.py` | Contribution investigations |
+| `finsight/question_router.py`, `finsight/reliability.py` | Routing and safeguards |
+| `finsight/skill_engine.py`, `skills/`, `finsight/skill_workflow.py` | Bundled skill selection and workflow utilities |
+| `finsight/commentary_engine.py`, `finsight/narrative_engine.py` | Calculated findings, themes and approved action plans |
+| `finsight/ai_engine.py` | OpenAI integration and selection validation |
+| `finsight/deterministic_report.py` | Local financial report rendering |
+| `finsight/verification_engine.py`, `finsight/claim_mapping.py` | Verification utilities |
+| `tests/test_*.py` | Test suite and connection diagnostic |
 
 **Stack:** Python, Streamlit, Pandas, NumPy, Plotly, Altair, OpenAI API, OpenPyXL, Pytest and Git.
 

@@ -1,5 +1,5 @@
-from question_router import route_question
-from deterministic_report import deterministic_insights
+from finsight.question_router import route_question
+from finsight.deterministic_report import deterministic_insights
 M=['2014-09','2014-10','2014-11']
 def test_multi():
     r=route_question('Why did revenue decline in November 2014? Analyze product, country, and segment contributions.',M)

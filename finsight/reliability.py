@@ -23,8 +23,8 @@ def period_label(df):
 
 
 def fallback_commentary(records):
-    from deterministic_report import deterministic_insights
-    from skill_workflow import anomaly_rows
+    from finsight.deterministic_report import deterministic_insights
+    from finsight.skill_workflow import anomaly_rows
     flags = anomaly_rows(records)
     if flags:
         return '\n\n'.join(f"- **{r['Severity']} flag:** {r['Period']} — {r['Anomaly']}. Proposed review: investigate the relevant sales, pricing and cost drivers. [{r['Evidence']}]" for r in flags)

@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from investigation_engine import investigate
+from finsight.investigation_engine import investigate
 
 @pytest.fixture
 def data():

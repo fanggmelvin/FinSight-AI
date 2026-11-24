@@ -1,5 +1,5 @@
 import pytest
-from verification_engine import verify_claim, verify_claims
+from finsight.verification_engine import verify_claim, verify_claims
 
 class Registry:
     records = [
@@ -32,7 +32,7 @@ def test_unknown_field():
 def test_summary():
     assert verify_claims([dict(evidence_id='E999')],Registry())['unverified']==1
 
-from claim_mapping import normalize_claims, uncovered_numbers
+from finsight.claim_mapping import normalize_claims, uncovered_numbers
 
 @pytest.mark.parametrize('value', [-2.83,-2830000])
 def test_million_surface_normalization(value):

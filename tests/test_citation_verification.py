@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 import pytest
-from ai_engine import verify_citations
+from finsight.ai_engine import verify_citations
 
 @pytest.fixture
 def registry():

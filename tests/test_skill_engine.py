@@ -1,5 +1,5 @@
 import pytest
-from skill_engine import select_skills, load_skills, ALLOWED
+from finsight.skill_engine import select_skills, load_skills, ALLOWED
 
 @pytest.mark.parametrize('question,records,route,expected', [
  ('Summarize performance', [], {}, 'financial-performance'),

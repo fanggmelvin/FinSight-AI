@@ -1,8 +1,8 @@
 import json
 import pytest
 from types import SimpleNamespace
-from deterministic_report import parse_structured_commentary
-from skill_workflow import anomaly_commentary_context
+from finsight.deterministic_report import parse_structured_commentary
+from finsight.skill_workflow import anomaly_commentary_context
 
 A = dict(category='Financial Anomaly', evidence_id='E044', values=dict(period='November 2014', category='Revenue Decline', severity='High', value=-.56, description='Revenue fell 56%'))
 B = dict(category='Financial Anomaly', evidence_id='E045', values=dict(period='March 2014', category='Margin Compression', severity='High', value=-3.17))

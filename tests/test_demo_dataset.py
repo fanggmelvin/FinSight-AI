@@ -1,5 +1,5 @@
-from demo_dataset import load_demo_state
-from finance_engine import calculate_metrics
+from finsight.demo_dataset import load_demo_state
+from finsight.finance_engine import calculate_metrics
 import pytest
 
 
@@ -17,8 +17,8 @@ def test_demo_state_is_independent():
 
 
 def test_offline_never_calls_client(monkeypatch):
-    import ai_engine
-    from evidence_engine import build_financial_evidence
+    import finsight.ai_engine as ai_engine
+    from finsight.evidence_engine import build_financial_evidence
     monkeypatch.setenv("FINSIGHT_LIVE_AI", "0")
     def forbidden():
         pytest.fail("Offline mode attempted API client creation")

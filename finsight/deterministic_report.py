@@ -97,7 +97,7 @@ def parse_structured_commentary(raw, registry):
         if priority not in ('High', 'Medium', 'Low') or any(not isinstance(t, str) or not t.strip() or '\n' in t or '[' in t or ']' in t for t in (observation, action)):
             errors.append('Invalid commentary fields'); continue
         line = f'- **{priority} priority:** {observation} **Proposed action:** {action} ' + ' '.join(f'[{i}]' for i in dict.fromkeys(ids))
-        from skill_workflow import qualitative_diagnostic, mask_cited_anomaly_dates
+        from finsight.skill_workflow import qualitative_diagnostic, mask_cited_anomaly_dates
         cited = [r for r in registry.records if r['evidence_id'] in ids]
         error = commentary_diagnostic(mask_cited_anomaly_dates(line, cited), registry) or qualitative_diagnostic(observation, cited)
         if error:

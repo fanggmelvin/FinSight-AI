@@ -1,7 +1,7 @@
 
 import hashlib
 import os
-from demo_dataset import load_demo_state
+from finsight.demo_dataset import load_demo_state
 
 # Public-safe default; local live AI requires explicit opt-in.
 os.environ.setdefault("FINSIGHT_LIVE_AI", "0")
@@ -11,13 +11,13 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-from data_validator import (
+from finsight.data_validator import (
     detect_columns,
     validate_financial_data,
     COLUMN_ALIASES
 )
 
-from finance_engine import (
+from finsight.finance_engine import (
     calculate_metrics,
     calculate_monthly_performance,
     calculate_breakdown,
@@ -83,7 +83,7 @@ def show_executive_analysis(result):
     if result.get('numerical_verification', {}).get('mode') != 'deterministic' or 'commentary' not in result:
         st.markdown(result['answer'])
         return
-    from deterministic_report import report_groups, build_facts, key_tables, deterministic_insights
+    from finsight.deterministic_report import report_groups, build_facts, key_tables, deterministic_insights
     from types import SimpleNamespace
     records = [r for r in result.get('cited_evidence', []) if r]
     total = next((r for r in records if r['title'] == 'Total financial change'), None)
@@ -110,7 +110,7 @@ def show_executive_analysis(result):
                 v=summary[t]['values'].get(f)
                 col.metric(t, format_percent(v) if f=='gross_margin' else (f'{v:,.2f}' if v is not None else 'N/A'))
     if 'anomaly-detection' in result.get('active_skills', []):
-        from skill_workflow import anomaly_rows
+        from finsight.skill_workflow import anomaly_rows
         st.subheader('Rule-based financial anomalies')
         flags = anomaly_rows(records)
         if flags:
@@ -119,7 +119,7 @@ def show_executive_analysis(result):
             st.info('No rule-based anomalies detected in the selected evidence.')
         st.caption('High severity flags precede review flags. Flags are investigation leads, not established causes.')
     if executive:
-        from skill_workflow import executive_risks
+        from finsight.skill_workflow import executive_risks
         st.subheader('Material financial risks and management action plan')
         risks = executive_risks(records)
         if risks:
@@ -464,7 +464,7 @@ with st.sidebar:
         st.rerun()
     if os.getenv("FINSIGHT_LIVE_AI") != "1":
         st.caption("Public demo: local analysis only; no API calls.")
-    st.caption("Version 0.16.0 | Demo")
+    st.caption("Version 0.16.2 | Demo")
     st.caption("Independent Portfolio Project")
 
 
@@ -1547,8 +1547,8 @@ elif page == "AI Copilot":
             st.write(question)
         with st.chat_message("assistant"):
             try:
-                from ai_engine import analyze_financial_data, investigate_revenue_change
-                from question_router import route_question
+                from finsight.ai_engine import analyze_financial_data, investigate_revenue_change
+                from finsight.question_router import route_question
                 if mode == "Automatic":
                     months = sorted(df["date"].dt.to_period("M").dropna().astype(str).unique())
                     route = route_question(question, months)
@@ -1559,7 +1559,7 @@ elif page == "AI Copilot":
                 else:
                     route = {"mode": "summary", "reason": "Manual selection."}
                 if route["mode"] in ("summary", "ranking"):
-                    from reliability import scope_data
+                    from finsight.reliability import scope_data
                     try:
                         scope_data(question, df, route)
                     except ValueError as exc:
@@ -1575,7 +1575,7 @@ elif page == "AI Copilot":
                     st.stop()
                 with st.spinner("Calculating evidence and generating analysis..."):
                     if route["mode"] == "multi_investigation":
-                        from investigation_bridge import run_investigation
+                        from finsight.investigation_bridge import run_investigation
                         result = run_investigation(question, df, route["previous_month"], route["current_month"], source, sheet)
                     elif route["mode"] == "revenue_investigation":
                         result = investigate_revenue_change(question, df, route["dimension"], route["current_month"], route["previous_month"], source, sheet)
@@ -1621,7 +1621,7 @@ elif page == "Financial Reports":
     if st.button("Generate Executive Report", type="primary"):
         st.session_state.pop("executive_report", None)
         try:
-            from ai_engine import analyze_financial_data
+            from finsight.ai_engine import analyze_financial_data
             question = (
                 f"Prepare an executive financial performance report for {audience}. "
                 "Include executive summary, revenue and profitability performance, monthly trends, "

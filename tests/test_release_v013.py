@@ -1,4 +1,4 @@
-from deterministic_report import deterministic_insights
+from finsight.deterministic_report import deterministic_insights
 
 def record(name, eid, **values):
     return dict(title=name,evidence_id=eid,values=values)

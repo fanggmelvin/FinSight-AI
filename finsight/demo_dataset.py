@@ -1,11 +1,11 @@
 """Load the bundled sample through the standard financial validator."""
 from pathlib import Path
 import pandas as pd
-from data_validator import validate_financial_data
+from finsight.data_validator import validate_financial_data
 
 
 def load_demo_state():
-    path = Path(__file__).resolve().parent / "demo_data" / "financial_sample.csv"
+    path = Path(__file__).resolve().parent.parent / "demo_data" / "financial_sample.csv"
     raw = pd.read_csv(path)
     result = validate_financial_data(raw)
     if not result["valid"]:

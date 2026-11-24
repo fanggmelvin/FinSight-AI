@@ -2,8 +2,8 @@
 import json
 import pandas as pd
 
-from evidence_engine import build_driver_evidence
-from ai_engine import analyze_question
+from finsight.evidence_engine import build_driver_evidence
+from finsight.ai_engine import analyze_question
 
 
 df = pd.DataFrame({

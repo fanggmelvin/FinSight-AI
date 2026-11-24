@@ -1,7 +1,7 @@
 """Consolidate calculated observations into contextual management themes."""
 import re
 from collections import OrderedDict
-from commentary_engine import findings_for
+from finsight.commentary_engine import findings_for
 
 PLANS = {
  'segment_margin': ('Segment profitability', 'Negative gross margin indicates sales do not cover recorded cost of goods sold; it does not establish net income.', ['Review segment-level pricing, discounts and unit costs; isolate loss-making product combinations.', 'Build a segment gross-profit bridge separating volume, price and unit-cost effects where data permits.']),

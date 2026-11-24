@@ -1,6 +1,6 @@
 """Connect deterministic investigations to the existing evidence registry."""
-from investigation_engine import investigate
-from evidence_engine import EvidenceRegistry, source_reference
+from finsight.investigation_engine import investigate
+from finsight.evidence_engine import EvidenceRegistry, source_reference
 
 
 def build_investigation_evidence(df, previous, current, source, sheet):
@@ -34,7 +34,7 @@ def build_investigation_evidence(df, previous, current, source, sheet):
 
 
 def run_investigation(question, df, previous, current, source, sheet):
-    from ai_engine import analyze_question
+    from finsight.ai_engine import analyze_question
     registry, investigation = build_investigation_evidence(df, previous, current, source, sheet)
     result = analyze_question(question + '\nCompare all supplied dimensions independently. Never add changes across dimensions. Intersection evidence contains only the five largest absolute changes, or fewer if unavailable. Distinguish arithmetic attribution from causation. The selected comparison is not the entire dataset.', registry)
     result['investigation'] = investigation

@@ -1,0 +1,1 @@
+"""FinSight financial analytics package."""

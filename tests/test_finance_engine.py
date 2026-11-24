@@ -2,7 +2,7 @@
 import pandas as pd
 import pytest
 
-from finance_engine import (
+from finsight.finance_engine import (
     safe_divide,
     calculate_metrics,
     calculate_monthly_performance,
@@ -13,7 +13,7 @@ from finance_engine import (
     analyze_financial_data
 )
 
-from data_validator import (
+from finsight.data_validator import (
     detect_columns,
     validate_financial_data
 )

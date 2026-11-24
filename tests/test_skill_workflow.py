@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 import json
-from skill_workflow import select_evidence, anomaly_rows, qualitative_diagnostic
-from deterministic_report import parse_structured_commentary, build_facts
+from finsight.skill_workflow import select_evidence, anomaly_rows, qualitative_diagnostic
+from finsight.deterministic_report import parse_structured_commentary, build_facts
 
 A=dict(category='Financial Anomaly', title='November | Revenue Decline', evidence_id='E001', values=dict(category='Revenue Decline', severity='High', period='November', value=-.56))
 B=dict(category='Financial Anomaly', title='March | Margin Compression', evidence_id='E002', values=dict(category='Margin Compression', severity='High', period='March', value=-3.17))

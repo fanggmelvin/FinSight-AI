@@ -1,5 +1,5 @@
 import json
-from narrative_engine import build_themes, render_themes
+from finsight.narrative_engine import build_themes, render_themes
 from test_controlled_commentary import R
 
 def test_grouped_concentration():

@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from evidence_engine import (
+from finsight.evidence_engine import (
     EvidenceRegistry,
     clean_value,
     source_reference,

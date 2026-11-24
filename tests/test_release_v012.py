@@ -1,5 +1,5 @@
-from question_router import route_question
-from deterministic_report import key_tables
+from finsight.question_router import route_question
+from finsight.deterministic_report import key_tables
 import pytest
 
 @pytest.mark.parametrize('question,mode,metric',[

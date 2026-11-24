@@ -1,7 +1,7 @@
 import json
 from types import SimpleNamespace
-from skill_workflow import executive_risks, executive_commentary_context, qualitative_diagnostic
-from deterministic_report import parse_structured_commentary
+from finsight.skill_workflow import executive_risks, executive_commentary_context, qualitative_diagnostic
+from finsight.deterministic_report import parse_structured_commentary
 
 def rec(i,title,values,category='Segment Performance'):
     return dict(evidence_id=f'E{i:03}',title=title,values=values,category=category,source={'file':'sample'},methodology='aggregation')

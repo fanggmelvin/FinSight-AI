@@ -1,5 +1,5 @@
 import pytest
-from question_router import route_question
+from finsight.question_router import route_question
 
 MONTHS=['2013-12','2014-01','2014-09','2014-10','2014-11','2013-11']
 @pytest.mark.parametrize('question,mode,dimension,previous,current',[

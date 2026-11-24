@@ -2,7 +2,7 @@
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent / "skills"
+ROOT = Path(__file__).resolve().parent.parent / "skills"
 ALLOWED = frozenset(('financial-performance','variance-analysis','profitability-analysis','concentration-risk','anomaly-detection','executive-reporting','evidence-verification'))
 
 def select_skills(question, records, route=None):

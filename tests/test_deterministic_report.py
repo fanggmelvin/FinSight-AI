@@ -1,4 +1,4 @@
-from deterministic_report import build_facts, render_report, validate_commentary
+from finsight.deterministic_report import build_facts, render_report, validate_commentary
 class Registry:
     records=[{'evidence_id':'E001','title':'Total','values':{'revenue_change':-2830217.95,'previous_gross_margin':.144,'current_gross_margin':.112,'growth':None}}]
 
@@ -23,18 +23,18 @@ def test_spelled_number():
     assert not validate_commentary('Revenue fell three million [E001]', Registry())
 
 def test_diagnostics():
-    from deterministic_report import commentary_diagnostic
+    from finsight.deterministic_report import commentary_diagnostic
     assert commentary_diagnostic('Review [E999]', Registry()) == 'Unknown evidence reference'
     assert commentary_diagnostic('Review [E001]', Registry()) is None
 
 def test_grouping():
-    from deterministic_report import report_groups
+    from finsight.deterministic_report import report_groups
     assert report_groups(Registry.records)['Other evidence'] == Registry.records
 
 
 def test_structured_commentary():
     import json
-    from deterministic_report import parse_structured_commentary
+    from finsight.deterministic_report import parse_structured_commentary
     item = dict(observation='Revenue declined.', action='Review contracts.', priority='High', evidence_ids=['E001'])
     text, error = parse_structured_commentary(json.dumps({'items':[item]}), Registry())
     assert '[E001]' in text and error is None
@@ -46,5 +46,5 @@ def test_structured_commentary():
 
 
 def test_invalid_json():
-    from deterministic_report import parse_structured_commentary
+    from finsight.deterministic_report import parse_structured_commentary
     assert parse_structured_commentary('not json', Registry())[0] == ''

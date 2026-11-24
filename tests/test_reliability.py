@@ -1,8 +1,8 @@
 import pandas as pd
 import pytest
-from reliability import scope_data, period_label, fallback_commentary
-from question_router import route_question
-from skill_workflow import qualitative_diagnostic
+from finsight.reliability import scope_data, period_label, fallback_commentary
+from finsight.question_router import route_question
+from finsight.skill_workflow import qualitative_diagnostic
 
 @pytest.fixture
 def data():

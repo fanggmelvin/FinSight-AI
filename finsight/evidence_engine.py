@@ -5,7 +5,7 @@ import math
 import pandas as pd
 import numpy as np
 
-from finance_engine import (
+from finsight.finance_engine import (
     calculate_metrics,
     calculate_monthly_performance,
     calculate_breakdown,
