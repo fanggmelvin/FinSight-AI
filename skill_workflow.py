@@ -31,6 +31,12 @@ def qualitative_diagnostic(observation, records):
         return 'Annual comparison claim requires comparable annual evidence'
     if records and all(r.get('category') == 'Financial Anomaly' for r in records) and re.search(r'\b(?:without|no|missing|absent|unavailable|not provided)\b.{0,45}\b(?:data|information|figures|metrics)\b', observation, re.I):
         return 'Flag-only evidence cannot establish missing underlying data'
+    # Rankings are rendered by Python. Reject model superlatives rather than
+    # attempting to infer the subject of arbitrary prose.
+    if re.search(r'\b(?:highest|lowest|largest|smallest|greatest|least|best|worst|top|bottom|most|ranked)\b', observation, re.I):
+        return 'Ranking language reserved for calculated findings'
+    if re.search(r'\b(?:consistently|throughout the year|every month)\b', observation, re.I) and not any(r.get('title','').startswith('Financial Performance:') for r in records):
+        return 'Temporal consistency requires period-level evidence'
     return None
 
 

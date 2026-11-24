@@ -439,7 +439,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.caption("Version 0.14.3")
+    st.caption("Version 0.14.4")
     st.caption("Independent Portfolio Project")
 
 
@@ -1467,6 +1467,8 @@ elif page == "AI Copilot":
     suggested_submit = st.button("Ask suggested question", disabled=suggestion == "Choose a question")
 
     def render_answer(result):
+        if result.get("effective_period"):
+            st.caption("Effective reporting months: " + result["effective_period"])
         if result.get("route"):
             route = result["route"]
             st.caption(f"Selected analysis: {route['mode']}")
@@ -1531,6 +1533,14 @@ elif page == "AI Copilot":
                     route = {"mode": "revenue_investigation", "dimension": dimension, "current_month": current, "previous_month": previous, "reason": "Manual selection."}
                 else:
                     route = {"mode": "summary", "reason": "Manual selection."}
+                if route["mode"] in ("summary", "ranking"):
+                    from reliability import scope_data
+                    try:
+                        scope_data(question, df, route)
+                    except ValueError as exc:
+                        st.warning(str(exc))
+                        st.info("No AI request was sent.")
+                        st.stop()
                 if route["mode"] == "clarify":
                     st.warning(route["reason"])
                     st.info("Please rephrase your question or choose manual analysis. No AI request was sent.")

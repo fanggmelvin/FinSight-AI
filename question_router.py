@@ -15,6 +15,8 @@ def route_question(question, available_months):
         return {'mode':'clarify','reason':'Requested year is not available in selected data.'}
     if re.search(r'\b(net income|net profit|ebitda|cash flow|earnings per share)\b', q):
         return {'mode':'clarify','reason':'This dataset does not establish the requested metric; gross profit is not net income.'}
+    if not investigation and len(years_requested)>1:
+        return {'mode':'clarify','reason':'Specify a single reporting year; annual comparisons are not supported.'}
     if not investigation and len(dimensions)==1:
         rank_clause = re.split(r'[,;]|\band\b', q, maxsplit=1)[0]
         metric = 'revenue_share' if re.search(r'concentrat|revenue share',rank_clause) else 'gross_margin' if re.search(r'profitab|gross margin',rank_clause) else 'revenue_share' if re.search(r'concentrat|revenue share',q) else 'gross_margin' if re.search(r'profitab|gross margin',q) else None

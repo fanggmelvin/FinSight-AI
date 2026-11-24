@@ -235,11 +235,15 @@ def analyze_question(
         commentary, diagnostic = '', 'Incomplete model response'
     else:
         commentary, diagnostic = parse_structured_commentary(response.output_text, selected_registry)
+    accepted = bool(commentary)
+    if not accepted:
+        from reliability import fallback_commentary
+        commentary = '**Calculated fallback — AI commentary unavailable.**\n\n' + fallback_commentary(selected_records)
     answer, count = render_report(registry, commentary)
     usage = response.usage
     return {"question": question, "answer": answer, "model": selected_model, "active_skills": list(active_skills),
         "verification": verify_citations(answer, registry),
-        "numerical_verification": {"mode": "deterministic", "rendered_fields": count, "commentary_accepted": bool(commentary), "commentary_diagnostic": diagnostic, "tokens": 0},
+        "numerical_verification": {"mode": "deterministic", "rendered_fields": count, "commentary_accepted": accepted, "commentary_diagnostic": diagnostic, "tokens": 0},
         "cited_evidence": get_cited_evidence(answer, registry), "commentary": commentary,
         **{k: getattr(usage, k, 0) if usage else 0 for k in ('input_tokens','output_tokens','total_tokens')}}
 
@@ -301,6 +305,8 @@ def analyze_financial_data(
     route=None
 ):
 
+    from reliability import scope_data, period_label
+    df = scope_data(question, df, route)
     registry = build_financial_evidence(
         df,
         source_name,
@@ -312,7 +318,9 @@ def analyze_financial_data(
         if not registry.records:
             raise ValueError('Requested dimension unavailable.')
         registry.records.sort(key=lambda r: (r['values'].get(route['metric']) is None, (r['values'].get(route['metric']) or 0) * (1 if route['metric']=='gross_margin' else -1)))
-    return analyze_question(question, registry, route=route)
+    result = analyze_question(question, registry, route=route)
+    result["effective_period"] = period_label(df)
+    return result
 
 
 # ==========================================
