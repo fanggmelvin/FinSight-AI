@@ -1,0 +1,34 @@
+# API keys and secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Python environment
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.coverage
+htmlcov/
+
+# Development backups
+backup*/
+*_backup.py
+*_backup*.py
+step*_patch/
+*.zip
+
+# Financial data
+*.xlsx
+*.xlsm
+*.csv
+*.db
+*.sqlite3
+
+# Temporary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
