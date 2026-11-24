@@ -1,243 +1,188 @@
-﻿# FinSight AI
-### AI-Powered Financial Analyst Copilot
+# FinSight AI
 
-FinSight AI is a financial analytics application that combines
-deterministic financial calculations with large language models
-to deliver evidence-linked financial analysis, performance
-investigations, and executive management recommendations.
+**Financial Analyst Copilot | Python · Streamlit · OpenAI**
 
-## Project Highlights
+FinSight AI turns structured financial data into interactive dashboards, evidence-linked performance investigations and management recommendations. Built as a finance and AI engineering portfolio project, it separates financial calculations from language-model decisions to make reporting more reproducible and reduce unsupported numerical claims.
+
+![Release](https://img.shields.io/badge/release-v0.16.0-blue) ![Tests](https://img.shields.io/badge/tests-195%20passed-brightgreen) ![Python](https://img.shields.io/badge/Python-3.14-blue)
+
+## Project at a glance
 
 | Metric | Result |
 |---|---:|
-| Automated tests passed | 132 |
-| Financial source records | 700 |
-| 2014 revenue analyzed | $92.31 million |
-| Observed AI token reduction | 78.6% |
-| Application pages | 7 |
-| Financial benchmark categories exercised | 10 |
-| Release version | v0.13.1 |
+| Automated tests passed in local release validation | 195 |
+| Live regression workflows exercised successfully | 9 |
+| Application pages / bundled financial skills | 7 / 7 |
+| Sample dataset records | 700 |
+| 2014 sample revenue analyzed | $92.31M |
+| Observed token reduction across six workflows vs. v0.14.4 | 74.1% |
+| Observed revenue-investigation token reduction vs. v0.8.0 | 96.2% |
 
-## Business Problem
+## Business problem
 
-Financial analysts spend significant time consolidating data,
-investigating performance changes, identifying risks, and
-preparing management reports.
+Analysts must reconcile financial data, explain changes in performance, prioritize risks and communicate findings to management. Unrestricted language-model reporting can introduce unsupported numbers or causal explanations. FinSight uses local financial computation and constrained AI action selection instead of asking a model to calculate or invent financial results.
 
-Traditional AI applications may generate unsupported financial
-claims or incorrect calculations. FinSight addresses this
-challenge by separating deterministic financial computation
-from AI-generated interpretation.
+## Application walkthrough
 
-## Core Features
+| Page | Purpose |
+|---|---|
+| Overview | Financial KPIs and performance overview |
+| Data Upload | Excel/CSV ingestion, worksheet selection and validation |
+| Financial Analysis | Revenue, gross profit, margin and dimensional breakdowns |
+| Performance Drivers | Period comparisons and contribution analysis |
+| Anomaly Detection | Rule-based financial exception flags |
+| AI Copilot | Natural-language routing, evidence and contextual action selection |
+| Financial Reports | Executive reporting and management priorities |
 
-- Financial data validation for Excel and CSV files
-- Interactive financial KPI dashboards
-- Revenue and gross profit analysis
-- Product, country, and segment performance attribution
-- Multi-dimensional financial investigations
-- Rule-based financial anomaly detection
-- Revenue concentration and profitability analysis
-- Natural-language financial question routing
-- Evidence-linked AI commentary
-- Executive financial reporting
-- Missing-data and unsupported-metric safeguards
-
-## Application Architecture
+## Architecture
 
 ```mermaid
 flowchart TD
-    A[Excel or CSV Upload] --> B[Data Validation]
-    B --> C[Financial Calculation Engine]
-    C --> D[Evidence Registry]
-    Q[Natural Language Question] --> R[Question Router]
+    A[Excel or CSV] --> B[Validation and filters]
+    Q[Natural-language question] --> R[Question routing and scope guards]
+    B --> C[Local financial calculation engine]
     R --> C
-    D --> E[Deterministic Financial Report]
-    D --> F[OpenAI Interpretation]
-    F --> G[Citation ID Validation]
-    E --> H[Financial Dashboard and Report]
-    G --> H
+    C --> D[Evidence registry]
+    R --> S[Bundled financial skill selection]
+    D --> T[Deterministic findings and themes]
+    S --> T
+    T --> M[OpenAI: choose approved action IDs]
+    S --> M
+    M --> V[Validate selections or use local defaults]
+    T --> V
+    D --> O[Evidence-linked report]
+    V --> O
+    O --> I[Check evidence ID existence]
 ```
 
-Financial calculations are performed locally in Python.
-The language model provides qualitative interpretation
-and proposed management actions.
+Financial values, findings, priorities and business implications are generated locally. The model receives calculated themes and selects between approved investigation plans using a strict JSON schema. Invalid or unavailable AI responses fall back to local recommendations. The application checks evidence ID existence; it does not independently audit the financial data or verify factual entailment.
 
-Evidence identifiers connect commentary to calculated
-financial records.
+### Modular financial skills
 
-## Financial Case Study
+| Skill | Focus |
+|---|---|
+| `financial-performance` | Overall financial performance |
+| `variance-analysis` | Period changes and arithmetic contributions |
+| `profitability-analysis` | Gross margin and product profitability |
+| `concentration-risk` | Revenue exposure and concentration |
+| `anomaly-detection` | Financial exceptions and review priorities |
+| `executive-reporting` | Management-oriented reporting |
+| `evidence-verification` | Mandatory evidence guidance |
 
-Using the Microsoft Financial Sample dataset, FinSight
-investigated a substantial revenue decline between
-October and November 2014.
+Skills are bundled Markdown instructions selected by deterministic routing. They are not separately trained models.
 
-| Financial Metric | Result |
+## Financial case study
+
+Using the Microsoft Financial Sample dataset, the application analyzed 2014 performance and investigated the October-to-November revenue decline.
+
+| Annual metric | 2014 |
+|---|---:|
+| Revenue | $92,311,094.75 |
+| Cost of goods sold | $79,295,857.00 |
+| Gross profit | $13,015,237.75 |
+| Gross margin | 14.10% |
+
+| Investigation metric | Result |
 |---|---:|
 | October revenue | $12,375,819.92 |
 | November revenue | $5,384,214.20 |
-| Revenue change | -$6,991,605.72 |
-| Revenue growth | -56.49% |
-| Gross profit change | -$1,177,385.72 |
-| Gross margin change | -3.17 percentage points |
+| Revenue change | −$6,991,605.72 (−56.49%) |
+| Gross profit change | −$1,177,385.72 |
+| Gross margin change | −3.17 percentage points |
 
-The investigation identified:
+The investigation identifies Carretera as the largest negative product revenue contributor, Germany as the largest negative geographic contributor, and Government as the largest negative segment contributor. VTT / Germany / Government is a leading negative intersection. These overlapping dimensions must not be added together.
 
-- Carretera as the largest negative product revenue contributor.
-- VTT as the largest negative product gross profit contributor.
-- Germany as the largest negative geographic contributor.
-- Government as the largest negative segment contributor.
-- VTT / Germany / Government as a leading negative intersection.
+The annual review also identifies Enterprise's negative gross margin (−2.70%) and Government plus Small Business concentration (79.63% of revenue). These findings support targeted review of pricing, costs, sales mix and demand sensitivity, not conclusions about underlying causation.
 
-Contribution analysis identifies arithmetic drivers rather
-than establishing underlying business causation.
+## AI efficiency benchmarks
 
-## AI Efficiency Optimization
+Reported tokens from observed development runs using the same six analytical workflow categories:
 
-The application evolved from AI-generated numerical reporting
-toward deterministic financial calculations and structured
-AI interpretation.
+| Workflow | v0.14.4 | v0.15.0 | v0.16.0 |
+|---|---:|---:|---:|
+| Product profitability | 1,637 | 590 | 466 |
+| Segment concentration | 1,379 | 582 | 566 |
+| Financial summary | 7,200 | 1,786 | 1,269 |
+| Anomaly detection | 1,067 | 1,098 | 842 |
+| Revenue investigation | 6,041 | 1,230 | 1,028 |
+| Executive reporting | 4,003 | 1,869 | 1,352 |
+| **Total** | **21,327** | **7,155** | **5,523** |
 
-| Version | Observed Reported Tokens |
-|---|---:|
-| v0.8.0 | 27,006 |
-| v0.9.0 | 6,205 |
-| v0.10.0 | 6,038 |
-| v0.13.1 | 5,774 |
+The observed total fell 74.1% relative to v0.14.4. A separate historical revenue-investigation benchmark fell from 27,006 tokens in v0.8.0 to 1,028 in v0.16.0 (96.2%). Architectures and verification approaches changed across versions; these are development observations, not controlled experiments or guaranteed cost savings. The latest reported counts cover the final model request only.
 
-This represents a 78.6% reduction in observed reported token
-consumption between the selected benchmark runs.
+## Run locally
 
-These results are development observations rather than a
-controlled performance experiment.
-
-## Technology Stack
-
-- Python
-- Streamlit
-- Pandas
-- NumPy
-- Plotly
-- Altair
-- OpenAI API
-- OpenPyXL
-- Pytest
-- Git
-
-## Repository Structure
-
-| File | Purpose |
-|---|---|
-| app.py | Streamlit application |
-| data_validator.py | Financial data validation |
-| finance_engine.py | Financial calculations |
-| evidence_engine.py | Financial evidence registry |
-| investigation_engine.py | Multi-dimensional investigations |
-| investigation_bridge.py | Investigation integration |
-| question_router.py | Natural-language question routing |
-| ai_engine.py | AI interpretation |
-| deterministic_report.py | Deterministic financial reporting |
-| verification_engine.py | Numerical verification utilities |
-| claim_mapping.py | Financial claim mapping utilities |
-| test_*.py | Automated regression tests |
-
-## Local Installation
-
-Clone the repository:
-
-```bash
-git clone https://github.com/fanggmelvin/FinSight-AI.git
-cd FinSight-AI
-```
-
-Create a Python virtual environment:
-
-```bash
-python -m venv .venv
-```
-
-Activate on Windows:
+Development environment: Windows, Python 3.14. Other environments have not been validated for this release.
 
 ```powershell
+git clone https://github.com/fanggmelvin/FinSight-AI.git
+cd FinSight-AI
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-Install dependencies:
-
-```bash
 python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+notepad .env
 ```
 
-Create a local .env file using .env.example as a template.
+Replace the placeholder in `.env` with your own OpenAI API key. Never commit credentials. AI requests can incur charges and transmit calculated financial themes and the question to OpenAI; use non-confidential sample data unless authorized.
 
-Set OPENAI_API_KEY to your own API key.
-Never commit your API key to version control.
-
-Launch the application:
-
-```bash
+```powershell
 python -m streamlit run app.py
 ```
 
-The development environment uses Python 3.14.
-Compatibility with other Python versions should be tested.
+Open the local URL printed by Streamlit. In **Data Upload**, select an Excel or CSV financial dataset and validate it. For the case study, use the Microsoft Financial Sample workbook, available from [Microsoft Learn](https://learn.microsoft.com/en-us/power-bi/create-reports/sample-financial-download). The workbook is not bundled in this repository.
 
-## Automated Testing
-
-Install development dependencies:
-
-```bash
-python -m pip install -r requirements-dev.txt
-```
-
-Run the test suite:
-
-```bash
-python -m pytest -q
-```
-
-Latest local regression result: 132 tests passed.
-
-## Example Financial Questions
+Try these questions in **AI Copilot**:
 
 - Summarize financial performance in 2014.
-- Rank products by gross margin.
-- Identify the largest revenue concentration risks.
-- Which products drove revenue growth in October 2014?
-- Why did revenue decline in November 2014?
-- Analyze overlapping product, country, and segment drivers.
+- Rank all products by gross margin in 2014 and identify profitability risks.
+- Why did revenue decline in November 2014? Analyze product, country, and segment contributions.
+- Identify unusual financial results and anomalies in 2014.
+- Prepare an executive financial performance report for the CFO for 2014.
 
-## Data Source
+## Testing and reliability
 
-Microsoft Financial Sample dataset.
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+python -m pip check
+```
 
-Financial figures are derived from sample business data.
-Private financial workbooks and API credentials are excluded
-from version control.
+Release validation on the developer's Windows environment: **195 passed in 1.58 seconds**, no broken requirements. Nine live regression checks covered six analytical workflows and three guards: unsupported metrics, unavailable years and ambiguous comparison periods. All three guards prevented an AI request in the tested cases.
+
+## Repository structure
+
+| Module | Responsibility |
+|---|---|
+| `app.py` | Streamlit interface |
+| `data_validator.py` | Input normalization and validation |
+| `finance_engine.py` | Financial calculations |
+| `evidence_engine.py` | Structured financial evidence |
+| `investigation_engine.py`, `investigation_bridge.py` | Contribution investigations |
+| `question_router.py`, `reliability.py` | Routing and safeguards |
+| `skill_engine.py`, `skills/`, `skill_workflow.py` | Bundled skill selection and workflow utilities |
+| `commentary_engine.py`, `narrative_engine.py` | Calculated findings, themes and approved action plans |
+| `ai_engine.py` | OpenAI integration and selection validation |
+| `deterministic_report.py` | Local financial report rendering |
+| `verification_engine.py`, `claim_mapping.py` | Verification utilities |
+| `test_*.py` | Test suite and connection diagnostic |
+
+**Stack:** Python, Streamlit, Pandas, NumPy, Plotly, Altair, OpenAI API, OpenPyXL, Pytest and Git.
 
 ## Limitations
 
-- AI commentary is not independently verified for factual
-  entailment.
-- Valid evidence identifiers do not guarantee that every
-  associated interpretation is correct.
-- Financial contribution analysis does not establish causation.
-- Results depend on the quality and completeness of uploaded data.
-- Automated tests do not guarantee universal financial accuracy.
-- This application is an educational portfolio project, not
-  professional financial or investment advice.
+- Gross profit is not net income. Unsupported metrics require additional data.
+- Contribution analysis is arithmetic attribution, not proof of causation.
+- Anomaly and priority thresholds are illustrative review rules, not audited materiality standards.
+- Evidence ID checks do not prove factual entailment or source-data accuracy.
+- AI selects predefined investigation plans rather than performing unrestricted autonomous financial reasoning.
+- Results depend on the uploaded data, and passing tests do not guarantee universal correctness.
+- This is an educational portfolio project, not production financial software or investment advice.
 
 ## Author
 
-Melvin Fang
+**Melvin Fang** — University of California San Diego, B.S. Business Economics, Minor in Finance.
 
-University of California San Diego
-B.S. Business Economics | Minor in Finance
+Built to demonstrate financial analysis, business intelligence, applied AI integration and software reliability.
 
-Developed as a portfolio project demonstrating financial
-analysis, financial technology, AI integration, software
-testing, and business intelligence.
-
-## Project Status
-
-Release candidate: v0.13.1
+**Release:** v0.16.0
