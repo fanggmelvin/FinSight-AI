@@ -44,7 +44,7 @@ def show_numerical_verification(result):
         st.metric("Financial fields rendered from evidence", check.get("rendered_fields", 0))
         st.caption("Additional verification API tokens: 0. Values are rendered locally, not independently audited. AI commentary is not verified for factual entailment.")
         if check.get("controlled_actions"):
-            st.caption(f"AI-selected actions: {check.get('selected_actions',0)} of {check.get('total_findings',0)} findings. Remaining actions are rule-based.")
+            st.caption(f"AI-selected actions: {check.get('selected_actions',0)} of {check.get('total_findings',0)} themes. Remaining actions are rule-based.")
             if check.get("commentary_diagnostic"):
                 st.info(check["commentary_diagnostic"])
             return
@@ -124,7 +124,7 @@ def show_executive_analysis(result):
         st.caption('Priorities are illustrative review rules, not audited materiality thresholds. Segment exposure at or above 75% is flagged high. Lowest margin is a relative ranking, not proof of underperformance.')
         st.subheader('Calculated findings and management recommendations')
         st.markdown(result['commentary'] or 'Commentary unavailable; review the calculated evidence.')
-        st.caption('Financial findings are calculated locally. AI selects from predefined proposed actions; actions are not established causes or guaranteed outcomes.')
+        st.caption('Financial findings are calculated locally. Business implications are rule-based; AI selects contextual investigation plans. Actions are not established causes or guaranteed outcomes.')
         st.subheader('Supporting financial performance')
     for group, data in key_tables(records).items():
         frame = pd.DataFrame(data)
@@ -154,14 +154,14 @@ def show_executive_analysis(result):
             fig.update_layout(height=max(300, 45*len(frame)+100), showlegend=False)
             st.plotly_chart(fig, width='stretch')
     findings = deterministic_insights(records, result.get("route", {}).get("direction"))
-    if findings:
+    if findings and not result.get("numerical_verification", {}).get("controlled_actions"):
         st.subheader('Calculated management insights')
         st.markdown(findings)
         st.caption('Rankings are calculated from available evidence; suggested reviews are not established causes.')
     if not executive:
         st.subheader('Calculated findings and management recommendations')
         st.markdown(result['commentary'] or 'Commentary unavailable; review the calculated evidence.')
-        st.caption('Financial findings are calculated locally. AI selects from predefined proposed actions; actions are not established causes or guaranteed outcomes.')
+        st.caption('Financial findings are calculated locally. Business implications are rule-based; AI selects contextual investigation plans. Actions are not established causes or guaranteed outcomes.')
     with st.expander('Complete calculated financial evidence'):
         facts = build_facts(SimpleNamespace(records=records))
         for group, rows in report_groups(records).items():
@@ -444,7 +444,7 @@ with st.sidebar:
 
     st.divider()
 
-    st.caption("Version 0.15.0")
+    st.caption("Version 0.16.0")
     st.caption("Independent Portfolio Project")
 
 
