@@ -34,6 +34,52 @@ Analysts must reconcile financial data, explain changes in performance, prioriti
 | AI Copilot | Natural-language routing, evidence and contextual action selection |
 | Financial Reports | Executive reporting and management priorities |
 
+## Application screenshots
+
+The screenshots below show the full sample dataset (September 2013–December 2014, 700 records, approximately $118.73M revenue). The financial case study below uses only 2014.
+
+### Overview dashboard
+
+Full-dataset KPIs and platform capabilities.
+
+![Overview dashboard](screenshots/overview.png)
+
+### Financial analysis
+
+Interactive filters and financial KPIs across 700 sample records.
+
+![Financial analysis](screenshots/financial-analysis.png)
+
+### Monthly performance
+
+Revenue, gross profit, month-over-month growth and gross margin charts.
+
+![Monthly performance](screenshots/monthly-performance.png)
+
+### Monthly financial summary
+
+Detailed monthly metrics and expandable calculation evidence.
+
+![Monthly financial summary](screenshots/monthly-summary.png)
+
+### Performance drivers
+
+Product revenue and gross profit rankings.
+
+![Performance drivers](screenshots/performance-drivers.png)
+
+### AI Copilot interface
+
+Automatic routing, manual analysis modes and natural-language question entry.
+
+![AI Copilot interface](screenshots/ai-copilot.png)
+
+### Executive reporting interface
+
+Financial filters, report audience selection and report generation controls.
+
+![Executive reporting interface](screenshots/executive-report.png)
+
 ## Architecture
 
 ```mermaid
