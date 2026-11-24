@@ -1,6 +1,8 @@
+﻿[![Live Demo](https://img.shields.io/badge/Live_Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://finsight-by-melvin.streamlit.app/)
+
 # FinSight AI
 
-**Financial Analyst Copilot | Python · Streamlit · OpenAI**
+**Financial Analyst Copilot | Python Â· Streamlit Â· OpenAI**
 
 FinSight AI turns structured financial data into interactive dashboards, evidence-linked performance investigations and management recommendations. Built as a finance and AI engineering portfolio project, it separates financial calculations from language-model decisions to make reporting more reproducible and reduce unsupported numerical claims.
 
@@ -36,7 +38,7 @@ Analysts must reconcile financial data, explain changes in performance, prioriti
 
 ## Application screenshots
 
-The screenshots below show the full sample dataset (September 2013–December 2014, 700 records, approximately $118.73M revenue). The financial case study below uses only 2014.
+The screenshots below show the full sample dataset (September 2013â€“December 2014, 700 records, approximately $118.73M revenue). The financial case study below uses only 2014.
 
 ### Overview dashboard
 
@@ -132,13 +134,13 @@ Using the Microsoft Financial Sample dataset, the application analyzed 2014 perf
 |---|---:|
 | October revenue | $12,375,819.92 |
 | November revenue | $5,384,214.20 |
-| Revenue change | −$6,991,605.72 (−56.49%) |
-| Gross profit change | −$1,177,385.72 |
-| Gross margin change | −3.17 percentage points |
+| Revenue change | âˆ’$6,991,605.72 (âˆ’56.49%) |
+| Gross profit change | âˆ’$1,177,385.72 |
+| Gross margin change | âˆ’3.17 percentage points |
 
 The investigation identifies Carretera as the largest negative product revenue contributor, Germany as the largest negative geographic contributor, and Government as the largest negative segment contributor. VTT / Germany / Government is a leading negative intersection. These overlapping dimensions must not be added together.
 
-The annual review also identifies Enterprise's negative gross margin (−2.70%) and Government plus Small Business concentration (79.63% of revenue). These findings support targeted review of pricing, costs, sales mix and demand sensitivity, not conclusions about underlying causation.
+The annual review also identifies Enterprise's negative gross margin (âˆ’2.70%) and Government plus Small Business concentration (79.63% of revenue). These findings support targeted review of pricing, costs, sales mix and demand sensitivity, not conclusions about underlying causation.
 
 ## AI efficiency benchmarks
 
@@ -227,8 +229,9 @@ Release validation on the developer's Windows environment: **195 passed in 1.58 
 
 ## Author
 
-**Melvin Fang** — University of California San Diego, B.S. Business Economics, Minor in Finance.
+**Melvin Fang** â€” University of California San Diego, B.S. Business Economics, Minor in Finance.
 
 Built to demonstrate financial analysis, business intelligence, applied AI integration and software reliability.
 
 **Release:** v0.16.0
+
