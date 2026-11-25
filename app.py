@@ -1501,6 +1501,20 @@ elif page == "AI Copilot":
     suggested_submit = suggestion is not None
 
     def render_answer(result, answer_index):
+        if "scenario" in result:
+            scenario = result["scenario"]
+            st.subheader("Financial scenario — illustrative, not a forecast")
+            st.caption("Effective reporting months: " + scenario["period"])
+            st.caption(f"Baseline: {scenario['records']} selected records. Monetary values in source currency units. No AI request sent.")
+            for case in scenario["cases"]:
+                st.markdown("**" + case["label"] + "**")
+                table = []
+                for metric, base in scenario["baseline"].items():
+                    projected = case["metrics"][metric]
+                    table.append({"Metric": metric, "Baseline": base, "Projected": projected, "Change (pp for margin)": projected-base if projected is not None and base is not None else None})
+                st.dataframe(pd.DataFrame(table).round(2), hide_index=True)
+            st.caption("Assumptions are illustrative. No demand, capacity, stranded costs, taxes or operating expenses are modeled. Segment removal assumes all recorded segment COGS are avoidable.")
+            return
         if result.get("effective_question") and result["effective_question"] != result["question"]:
             st.caption("Interpreted follow-up: " + result["effective_question"])
         if result.get("effective_period"):
@@ -1576,6 +1590,18 @@ elif page == "AI Copilot":
                 from finsight.ai_engine import analyze_financial_data, investigate_revenue_change
                 from finsight.question_router import route_question
                 original_question = question
+                from finsight.scenario import is_scenario, run_scenario
+                if mode == "Automatic" and is_scenario(question):
+                    try:
+                        scenario = run_scenario(question, df)
+                    except ValueError as exc:
+                        st.warning(str(exc))
+                        st.info("No AI request was sent.")
+                        st.stop()
+                    result = {"question": question, "scenario": scenario, "route": {"mode": "scenario"}}
+                    history.append(result)
+                    render_answer(result, len(history)-1)
+                    st.stop()
                 if mode == "Automatic":
                     from finsight.conversation import resolve_followup
                     question, clarification = resolve_followup(question, history[-1] if history else None)
