@@ -52,7 +52,7 @@ def show_numerical_verification(result, compact=False):
         st.metric("Financial fields rendered from evidence", check.get("rendered_fields", 0))
         st.caption("Additional verification API tokens: 0. Values are rendered locally, not independently audited. AI commentary is not verified for factual entailment.")
         if check.get("controlled_actions"):
-            st.caption(f"AI-selected actions: {check.get('selected_actions',0)} of {check.get('total_findings',0)} themes. Remaining actions are rule-based.")
+            st.caption("AI-generated synthesis accepted." if check.get("generated_synthesis") else "Local rule-based recommendations used.")
             if check.get("commentary_diagnostic"):
                 st.info(check["commentary_diagnostic"])
             return
@@ -91,6 +91,10 @@ def show_executive_analysis(result):
     records = [r for r in result.get('cited_evidence', []) if r]
     total = next((r for r in records if r['title'] == 'Total financial change'), None)
     executive = 'executive-reporting' in result.get('active_skills', [])
+    if result.get('numerical_verification', {}).get('generated_synthesis'):
+        st.subheader('AI financial answer')
+        st.markdown(result['commentary'].split('\n\n**Calculated supporting findings**', 1)[0])
+        st.caption('AI interpretation and proposed actions; not independently verified for factual entailment.')
     st.subheader('Executive summary' if executive else 'Calculated financial evidence')
     st.caption('Monetary values are in source currency units. Contributions across dimensions must not be added.')
     if total:
@@ -131,8 +135,8 @@ def show_executive_analysis(result):
             st.info('No highlights available under the current report rules.')
         st.caption('Priorities are illustrative review rules, not audited materiality thresholds. Segment exposure at or above 75% is flagged high. Lowest margin is a relative ranking, not proof of underperformance.')
         st.subheader('Calculated findings and management recommendations')
-        st.markdown(result['commentary'] or 'Commentary unavailable; review the calculated evidence.')
-        st.caption('Financial findings are calculated locally. Business implications are rule-based; AI selects contextual investigation plans. Actions are not established causes or guaranteed outcomes.')
+        st.markdown(result['commentary'].split('\n\n**Calculated supporting findings**\n\n', 1)[-1] or 'Commentary unavailable; review the calculated evidence.')
+        st.caption('Financial findings are calculated locally. Supporting findings and fallback actions are rule-based. Actions are not established causes or guaranteed outcomes.')
         st.subheader('Supporting financial performance')
     for group, data in key_tables(records).items():
         frame = pd.DataFrame(data)
@@ -168,8 +172,8 @@ def show_executive_analysis(result):
         st.caption('Rankings are calculated from available evidence; suggested reviews are not established causes.')
     if not executive:
         st.subheader('Calculated findings and management recommendations')
-        st.markdown(result['commentary'] or 'Commentary unavailable; review the calculated evidence.')
-        st.caption('Financial findings are calculated locally. Business implications are rule-based; AI selects contextual investigation plans. Actions are not established causes or guaranteed outcomes.')
+        st.markdown(result['commentary'].split('\n\n**Calculated supporting findings**\n\n', 1)[-1] or 'Commentary unavailable; review the calculated evidence.')
+        st.caption('Financial findings are calculated locally. Supporting findings and fallback actions are rule-based. Actions are not established causes or guaranteed outcomes.')
     with st.expander('Complete calculated financial evidence'):
         facts = build_facts(SimpleNamespace(records=records))
         for group, rows in report_groups(records).items():
