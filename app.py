@@ -45,7 +45,7 @@ st.set_page_config(
 from finsight.ui_theme import apply_theme
 apply_theme()
 
-def show_numerical_verification(result):
+def show_numerical_verification(result, compact=False):
     st.subheader("Numerical claim checks")
     check = result.get("numerical_verification", {})
     if check.get("mode") == "deterministic":
@@ -64,7 +64,7 @@ def show_numerical_verification(result):
     if check.get("extraction_status") != "completed":
         st.warning("Numerical claim extraction incomplete or unavailable. Manual review required.")
     if check.get("errors"):
-        with st.expander("Extraction diagnostics", expanded=True):
+        with (st.container() if compact else st.expander("Extraction diagnostics", expanded=True)):
             st.json(check["errors"])
     st.caption(f"Extraction batches: {check.get('batches', 'N/A')} | Surface coverage warnings (separate from claim counts): {check.get('coverage_warnings', 'N/A')}")
     cols = st.columns(3)
@@ -74,7 +74,7 @@ def show_numerical_verification(result):
         st.warning("Some extracted claims failed or require review.")
     st.caption("AI proposes claim mappings; Python checks mapped values and rankings. Extraction may miss claims or map them incorrectly. Passing checks do not establish full report accuracy.")
     st.caption(f"Additional verification request tokens: {check.get('tokens')}")
-    with st.expander("Numerical verification details"):
+    with (st.container() if compact else st.expander("Numerical verification details")):
         if check.get("coverage_details"):
             st.json(check["coverage_details"])
         for item in check.get("results", []):
@@ -1490,7 +1490,7 @@ elif page == "AI Copilot":
                     suggestion = prompt
     suggested_submit = suggestion is not None
 
-    def render_answer(result):
+    def render_answer(result, answer_index):
         if result.get("effective_period"):
             st.caption("Effective reporting months: " + result["effective_period"])
         if result.get("route"):
@@ -1500,31 +1500,46 @@ elif page == "AI Copilot":
             if route.get("previous_month") and route.get("current_month"):
                 st.write(f"Dimension: {route['dimension']} | {route['previous_month']} to {route['current_month']}")
         if result.get("investigation"):
-            with st.expander("Deterministic reconciliation", expanded=True):
+            with st.expander("Deterministic reconciliation", expanded=False):
                 inv = result["investigation"]
                 st.caption(inv["note"])
                 st.dataframe([{"Dimension": d, "Net revenue change": round(b["net_change"], 2), "Reconciliation difference": round(b["reconciliation_difference"], 2)} for d,b in inv["dimensions"].items()])
-        if result.get("active_skills"):
-            st.caption("Active financial skills: " + ", ".join(result["active_skills"]))
         show_executive_analysis(result)
-        show_numerical_verification(result)
         verification = result["verification"]
-        if verification["passed"]:
-            st.success("All cited evidence IDs exist in the registry.")
-        else:
+        check = result.get("numerical_verification", {})
+        if not verification["passed"]:
             st.warning("Citation ID verification did not pass. Review this answer before relying on it.")
-        st.caption("ID verification does not establish that every claim is supported or numerically correct.")
-        cols = st.columns(3)
-        cols[0].metric("Valid IDs", len(verification["valid_citations"]))
-        cols[1].metric("Invalid IDs", len(verification["invalid_citations"]))
-        cols[2].metric("Reported tokens", result["total_tokens"])
-        st.caption(f"Model: {result['model']} | Token count for final request only")
-        with st.expander("Citation verification details"):
-            st.json(verification)
-        for record in result["cited_evidence"]:
-            if not record:
-                continue
-            with st.expander(f"[{record['evidence_id']}] {record['title']}"):
+        if check.get("mode") == "deterministic":
+            if not check.get("controlled_actions") and (not check.get("commentary_accepted") or check.get("commentary_diagnostic")):
+                st.warning("Some AI commentary was withheld or rejected. Review the verification details.")
+        elif check.get("extraction_status") != "completed" or any(check.get(k) for k in ("failed", "unverified", "coverage_warnings", "errors")):
+            st.warning("Numerical verification is incomplete or requires review.")
+        st.caption("Citation ID checks do not establish factual accuracy; financial values are not independently audited.")
+        records = [record for record in result["cited_evidence"] if record]
+        with st.expander(f"Evidence & verification details ({len(records)} records)", expanded=False):
+            if result.get("active_skills"):
+                st.caption("Active financial skills: " + ", ".join(result["active_skills"]))
+            show_numerical_verification(result, compact=True)
+            if verification["passed"]:
+                st.success("All cited evidence IDs exist in the registry.")
+            cols = st.columns(3)
+            cols[0].metric("Valid IDs", len(verification["valid_citations"]))
+            cols[1].metric("Invalid IDs", len(verification["invalid_citations"]))
+            cols[2].metric("Reported tokens", result["total_tokens"])
+            st.caption(f"Model: {result['model']} | Token count for final request only")
+            options = ["Citation verification details"] + [
+                f"[{record['evidence_id']}] {record['title']}" for record in records
+            ]
+            choice = st.selectbox(
+                "Select evidence or verification details",
+                range(len(options)),
+                format_func=lambda index: options[index],
+                key=f"copilot_evidence_{answer_index}",
+            )
+            if choice == 0:
+                st.json(verification)
+            else:
+                record = records[choice - 1]
                 st.write("Methodology:", record.get("methodology"))
                 st.write("Calculated values:")
                 st.write(record.get("values"))
@@ -1533,11 +1548,11 @@ elif page == "AI Copilot":
                 st.write("Full evidence record:")
                 st.write(record)
 
-    for item in history:
+    for answer_index, item in enumerate(history):
         with st.chat_message("user"):
             st.write(item["question"])
         with st.chat_message("assistant"):
-            render_answer(item)
+            render_answer(item, answer_index)
 
     typed = st.chat_input("Ask a question about your selected financial data")
     question = suggestion if suggested_submit else typed
@@ -1582,7 +1597,7 @@ elif page == "AI Copilot":
                         result = analyze_financial_data(question, df, source, sheet, route=route)
                 result["route"] = route
                 history.append(result)
-                render_answer(result)
+                render_answer(result, len(history) - 1)
             except Exception as error:
                 status = getattr(error, "status_code", None)
                 if status == 429:
