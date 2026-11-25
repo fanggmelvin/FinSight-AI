@@ -1506,13 +1506,30 @@ elif page == "AI Copilot":
             st.subheader("Financial scenario — illustrative, not a forecast")
             st.caption("Effective reporting months: " + scenario["period"])
             st.caption(f"Baseline: {scenario['records']} selected records. Monetary values in source currency units. No AI request sent.")
-            for case in scenario["cases"]:
+            from finsight.scenario_presentation import format_value, executive_summary
+            if result.get("effective_question") != result.get("question") and result.get("effective_question"):
+                st.caption("Interpreted follow-up: " + result["effective_question"])
+            for case_index, case in enumerate(scenario["cases"]):
                 st.markdown("**" + case["label"] + "**")
+                base, projected = scenario["baseline"], case["metrics"]
+                st.write(executive_summary(base, projected))
+                cols = st.columns(2)
+                for col, metric in zip(cols, ("Gross profit", "Gross margin (%)")):
+                    margin = metric.endswith("(%)")
+                    delta = projected[metric]-base[metric] if projected[metric] is not None and base[metric] is not None else None
+                    col.metric(metric, format_value(projected[metric], margin), format_value(delta, margin, True) if delta is not None else None)
                 table = []
-                for metric, base in scenario["baseline"].items():
-                    projected = case["metrics"][metric]
-                    table.append({"Metric": metric, "Baseline": base, "Projected": projected, "Change (pp for margin)": projected-base if projected is not None and base is not None else None})
-                st.dataframe(pd.DataFrame(table).round(2), hide_index=True)
+                for metric, value in base.items():
+                    p = projected[metric]
+                    margin = metric.endswith("(%)")
+                    table.append({"Metric": metric, "Baseline": format_value(value, margin), "Projected": format_value(p, margin), "Change": format_value(p-value if p is not None and value is not None else None, margin, True)})
+                st.dataframe(pd.DataFrame(table), hide_index=True)
+                chart = pd.DataFrame({"Metric": ["Revenue", "COGS", "Gross profit"], "Baseline": [base[k] for k in ("Revenue", "COGS", "Gross profit")], "Projected": [projected[k] for k in ("Revenue", "COGS", "Gross profit")]})
+                st.plotly_chart(px.bar(chart, x="Metric", y=["Baseline", "Projected"], barmode="group", labels={"value":"Source currency units", "variable":"Case"}), key=f"scenario_chart_{answer_index}_{case_index}")
+            if result.get("sensitivity"):
+                with st.expander("Sensitivity analysis"):
+                    st.caption("Percentage magnitude varies; original direction and reporting scope are preserved.")
+                    st.plotly_chart(px.line(pd.DataFrame(result["sensitivity"]), x="Assumption magnitude (%)", y="Gross profit", color="Cost assumption", markers=True), key=f"scenario_sensitivity_{answer_index}")
             st.caption("Assumptions are illustrative. No demand, capacity, stranded costs, taxes or operating expenses are modeled. Segment removal assumes all recorded segment COGS are avoidable.")
             return
         if result.get("effective_question") and result["effective_question"] != result["question"]:
@@ -1591,6 +1608,13 @@ elif page == "AI Copilot":
                 from finsight.question_router import route_question
                 original_question = question
                 from finsight.scenario import is_scenario, run_scenario
+                from finsight.scenario_presentation import resolve_scenario_followup, sensitivity
+                if mode == "Automatic":
+                    question, scenario_clarification = resolve_scenario_followup(question, history[-1] if history else None)
+                    if scenario_clarification:
+                        st.warning(scenario_clarification)
+                        st.info("No AI request was sent.")
+                        st.stop()
                 if mode == "Automatic" and is_scenario(question):
                     try:
                         scenario = run_scenario(question, df)
@@ -1598,7 +1622,7 @@ elif page == "AI Copilot":
                         st.warning(str(exc))
                         st.info("No AI request was sent.")
                         st.stop()
-                    result = {"question": question, "scenario": scenario, "route": {"mode": "scenario"}}
+                    result = {"question": original_question, "effective_question": question, "scenario": scenario, "sensitivity": sensitivity(question, df), "route": {"mode": "scenario"}}
                     history.append(result)
                     render_answer(result, len(history)-1)
                     st.stop()
