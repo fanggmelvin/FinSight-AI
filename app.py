@@ -285,47 +285,46 @@ def require_data():
 
 def apply_filters(df, prefix):
 
-    st.subheader("Analysis Filters")
+    with st.expander("Analysis filters", expanded=False):
+        years = sorted(
+            df["date"].dt.year.unique().tolist()
+        )
 
-    years = sorted(
-        df["date"].dt.year.unique().tolist()
-    )
+        selected_year = st.selectbox(
+            "Financial Year",
+            ["All Years"] + years,
+            key=f"{prefix}_year"
+        )
 
-    selected_year = st.selectbox(
-        "Financial Year",
-        ["All Years"] + years,
-        key=f"{prefix}_year"
-    )
+        if selected_year != "All Years":
 
-    if selected_year != "All Years":
+            df = df[
+                df["date"].dt.year == selected_year
+            ]
 
-        df = df[
-            df["date"].dt.year == selected_year
-        ]
+        cols = st.columns(3)
 
-    cols = st.columns(3)
+        for i, field in enumerate(
+            ["segment", "country", "product"]
+        ):
 
-    for i, field in enumerate(
-        ["segment", "country", "product"]
-    ):
+            if field in df.columns:
 
-        if field in df.columns:
-
-            options = sorted(
-                df[field].dropna().unique().tolist()
-            )
-
-            with cols[i]:
-
-                selected = st.multiselect(
-                    field.title(),
-                    options,
-                    key=f"{prefix}_{field}"
+                options = sorted(
+                    df[field].dropna().unique().tolist()
                 )
 
-            if selected:
+                with cols[i]:
 
-                df = df[df[field].isin(selected)]
+                    selected = st.multiselect(
+                        field.title(),
+                        options,
+                        key=f"{prefix}_{field}"
+                    )
+
+                if selected:
+
+                    df = df[df[field].isin(selected)]
 
     if df.empty:
 
@@ -349,14 +348,23 @@ def style_chart(fig):
         font=dict(color="#334155", family="Arial"),
         colorway=["#426E9B", "#16967A", "#B45309", "#64748B"],
         hoverlabel=dict(bgcolor="white", font_color="#10243D"),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=20, r=20, t=55, b=20),
-        height=380
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
+        margin=dict(l=20, r=20, t=48 if fig.layout.title.text else 15, b=20),
+        height=330
     )
 
     fig.update_xaxes(gridcolor="#E5EAF0", automargin=True)
     fig.update_yaxes(gridcolor="#E5EAF0", automargin=True)
+    labels = {"month": "Month", "revenue": "Revenue", "gross_profit": "Gross profit", "gross_margin": "Gross margin", "revenue_growth": "Revenue growth", "revenue_change": "Revenue change", "product": "Product", "country": "Country", "segment": "Segment", "direction": "Direction", "cogs": "Cost of goods sold"}
+    for axis in (fig.layout.xaxis, fig.layout.yaxis):
+        raw = axis.title.text
+        if raw in labels:
+            axis.title.text = labels[raw]
+        if raw in ("revenue", "gross_profit", "revenue_change", "cogs"):
+            axis.tickprefix = "$"
+    if fig.layout.legend.title.text in labels:
+        fig.layout.legend.title.text = labels[fig.layout.legend.title.text]
     return fig
 
 
@@ -478,7 +486,7 @@ with st.sidebar:
         st.rerun()
     if os.getenv("FINSIGHT_LIVE_AI") != "1":
         st.caption("Public demo: local analysis only; no API calls.")
-    st.caption("Version 0.17.0 | UI preview")
+    st.caption("Version 0.17.0")
     st.caption("Independent Portfolio Project")
 
 
@@ -899,6 +907,8 @@ elif page == "Financial Analysis":
             y="revenue_growth",
             title="Month-over-Month Revenue Growth"
         )
+
+        fig.update_traces(marker_color=["#94A3B8" if pd.isna(v) else "#16967A" if v >= 0 else "#B91C1C" for v in monthly["revenue_growth"]])
 
         fig.update_yaxes(tickformat=".0%")
 
@@ -1397,6 +1407,8 @@ elif page == "Anomaly Detection":
         title="Monthly Revenue Growth and Thresholds"
     )
 
+    fig.update_traces(marker_color=["#94A3B8" if pd.isna(v) else "#16967A" if v >= 0 else "#B91C1C" for v in monthly["revenue_growth"]])
+
     fig.update_yaxes(tickformat=".0%")
 
     fig.add_hline(
@@ -1432,25 +1444,26 @@ elif page == "AI Copilot":
     sheet = st.session_state["sheet_name"]
     st.info("Financial calculations are performed locally. Aggregated evidence, source labels and your question are sent to OpenAI when you submit a question. Financial figures are rendered locally; no additional AI verification request is made. Use only data you are authorized to share." if os.getenv("FINSIGHT_LIVE_AI") == "1" else "Public demo: financial calculations and rule-based recommendations run locally. No data is sent to OpenAI and no API key is required.")
 
-    mode = st.radio("Analysis mode", ["Automatic", "Financial summary", "Revenue change investigation", "Multi-dimensional investigation"], horizontal=True)
-    st.caption("Automatic mode selects evidence using your question and the filtered dataset. Explicit monthly comparisons require both months to be present.")
-    dimension = current = previous = None
-    if mode in ("Revenue change investigation", "Multi-dimensional investigation"):
-        dimensions = [x for x in ["product", "country", "segment"] if x in df.columns]
-        months = sorted(df["date"].dt.to_period("M").astype(str).unique())
-        if not dimensions or len(months) < 2:
-            st.warning("This mode requires a mapped business dimension and at least two months.")
-            st.stop()
-        dimension = st.selectbox("Analyze by", dimensions, format_func=str.title) if mode == "Revenue change investigation" else "all"
-        left, right = st.columns(2)
-        previous = left.selectbox("Previous period", months, index=len(months)-2, key="ai_previous")
-        current = right.selectbox("Current period", months, index=len(months)-1, key="ai_current")
-        if current <= previous:
-            st.warning("Choose a current period later than the previous period.")
-            st.stop()
-        suggestions = [f"Explain the revenue change from {previous} to {current} by {dimension}.", "Which contributors offset the decline?", "What should management investigate next?"]
-    else:
-        suggestions = ["Summarize financial performance.", "Identify profitability risks supported by the evidence.", "Which business categories contribute most to revenue?"]
+    with st.expander("Analysis mode and comparison settings", expanded=False):
+        mode = st.radio("Analysis mode", ["Automatic", "Financial summary", "Revenue change investigation", "Multi-dimensional investigation"], horizontal=True)
+        st.caption("Automatic mode selects evidence using your question and the filtered dataset. Explicit monthly comparisons require both months to be present.")
+        dimension = current = previous = None
+        if mode in ("Revenue change investigation", "Multi-dimensional investigation"):
+            dimensions = [x for x in ["product", "country", "segment"] if x in df.columns]
+            months = sorted(df["date"].dt.to_period("M").astype(str).unique())
+            if not dimensions or len(months) < 2:
+                st.warning("This mode requires a mapped business dimension and at least two months.")
+                st.stop()
+            dimension = st.selectbox("Analyze by", dimensions, format_func=str.title) if mode == "Revenue change investigation" else "all"
+            left, right = st.columns(2)
+            previous = left.selectbox("Previous period", months, index=len(months)-2, key="ai_previous")
+            current = right.selectbox("Current period", months, index=len(months)-1, key="ai_current")
+            if current <= previous:
+                st.warning("Choose a current period later than the previous period.")
+                st.stop()
+            suggestions = [f"Explain the revenue change from {previous} to {current} by {dimension}.", "Which contributors offset the decline?", "What should management investigate next?"]
+        else:
+            suggestions = ["Summarize financial performance.", "Identify profitability risks supported by the evidence.", "Which business categories contribute most to revenue?"]
 
     scope = (st.session_state.get("dataset_id"), source, sheet, mode, dimension, previous, current, hashlib.sha256(df.to_csv(index=False).encode()).hexdigest())
     if st.session_state.get("ai_scope") != scope:
@@ -1461,11 +1474,20 @@ elif page == "AI Copilot":
         history.clear()
         st.rerun()
     st.caption("Each question is analyzed independently using the selected evidence; earlier messages are displayed for reference only.")
-    st.markdown("**Suggested questions**")
     suggestion = None
-    for i, (col, prompt) in enumerate(zip(st.columns(3), suggestions)):
-        if col.button(prompt, key=f"suggestion_{i}", width="stretch"):
-            suggestion = prompt
+    if not history:
+        st.subheader("What would you like to analyze?")
+        st.caption("Start with a suggested question or enter your own below.")
+        for i, (col, prompt) in enumerate(zip(st.columns(3), suggestions)):
+            with col:
+                with st.container(border=True):
+                    if st.button(prompt, key=f"suggestion_{i}", width="stretch"):
+                        suggestion = prompt
+    else:
+        with st.expander("Suggested questions"):
+            for i, (col, prompt) in enumerate(zip(st.columns(3), suggestions)):
+                if col.button(prompt, key=f"suggestion_{i}", width="stretch"):
+                    suggestion = prompt
     suggested_submit = suggestion is not None
 
     def render_answer(result):

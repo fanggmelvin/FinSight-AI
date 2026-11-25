@@ -239,3 +239,18 @@ Built to demonstrate financial analysis, business intelligence, applied AI integ
 ## Public demonstration mode
 
 The hosted app automatically validates and loads 700 sample records from the Microsoft Financial Sample workbook. Custom uploads remain available. The public demo runs local financial calculations and rule-based recommendations without OpenAI requests. For private local live AI use, explicitly set `FINSIGHT_LIVE_AI=1` in the shell before starting Streamlit and configure your own API key. Do not enable this flag on an unrestricted public deployment.
+
+
+## v0.17.0 - Modern Fintech Interface
+
+- Modern fintech SaaS-inspired design.
+- Professional sidebar navigation.
+- Rounded financial KPI cards.
+- Interactive executive overview dashboard.
+- Consistent financial chart formatting.
+- Collapsible analysis filters.
+- Streamlined AI Copilot with suggested questions.
+- Improved typography, spacing, and readability.
+- Existing financial engine and AI workflows preserved.
+- All 198 automated regression tests passed.
+
