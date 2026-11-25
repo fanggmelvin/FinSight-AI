@@ -7,6 +7,7 @@ from finsight.verification_engine import verify_claims
 from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
+from finsight.api_guard import GuardedClient, QuotaExceeded
 
 from finsight.evidence_engine import (
     EvidenceRegistry,
@@ -89,11 +90,11 @@ def get_client():
             "OPENAI_API_KEY is missing."
         )
 
-    return OpenAI(
+    return GuardedClient(OpenAI(
         api_key=api_key,
-        timeout=60.0,
-        max_retries=2
-    )
+        timeout=30.0,
+        max_retries=0
+    ))
 
 
 # ==========================================
@@ -232,6 +233,8 @@ def analyze_question(
                 diagnostic='Incomplete recommendation response; local recommendations used.'
             else:
                 raw=response.output_text
+        except QuotaExceeded:
+            diagnostic='Live AI usage limit reached; local recommendations used.'
         except Exception:
             diagnostic='AI recommendation service unavailable; local recommendations used.'
     commentary, selected_count, invalid = render_themes(findings, raw)
