@@ -91,6 +91,12 @@ def show_executive_analysis(result):
     records = [r for r in result.get('cited_evidence', []) if r]
     total = next((r for r in records if r['title'] == 'Total financial change'), None)
     executive = 'executive-reporting' in result.get('active_skills', [])
+    if result.get('direct_answer'):
+        st.subheader('Direct financial answer')
+        st.markdown(result['direct_answer'])
+    if result.get('local_plan'):
+        st.subheader('Local strategic action plan')
+        st.markdown(result['commentary'])
     if result.get('numerical_verification', {}).get('generated_synthesis'):
         st.subheader('AI financial answer')
         st.markdown(result['commentary'].split('\n\n**Calculated supporting findings**', 1)[0])
@@ -145,7 +151,7 @@ def show_executive_analysis(result):
         if group == 'Financial Performance':
             frame = frame.sort_values('Name')
         elif metric in frame:
-            frame = frame.sort_values(metric, ascending=metric == 'gross_margin' or (metric == 'revenue_change' and route.get('direction') != 'growth'), na_position='last')
+            frame = frame.sort_values(metric, ascending=route.get('ascending', metric == 'gross_margin' or (metric == 'revenue_change' and route.get('direction') != 'growth')), na_position='last')
         for field in ('gross_margin','revenue_share'):
             if field in frame:
                 frame[field] = frame[field].map(lambda x: f'{x:.2%}' if pd.notna(x) else 'N/A')

@@ -20,8 +20,12 @@ def route_question(question, available_months):
     if not investigation and len(dimensions)==1:
         rank_clause = re.split(r'[,;]|\band\b', q, maxsplit=1)[0]
         metric = 'revenue_share' if re.search(r'concentrat|revenue share',rank_clause) else 'gross_margin' if re.search(r'profitab|gross margin',rank_clause) else 'revenue_share' if re.search(r'concentrat|revenue share',q) else 'gross_margin' if re.search(r'profitab|gross margin',q) else None
+        if re.search(r'\bgross profits?\b', q) and not re.search(r'concentrat|revenue share', rank_clause):
+            metric = 'gross_profit'
+        if not metric and re.search(r'\b(revenue|sales)\b', q):
+            metric = 'revenue'
         if metric:
-            return {'mode':'ranking','dimension':dimensions[0],'metric':metric,'reason':'Deterministic ranking by requested metric.'}
+            return {'mode':'ranking','dimension':dimensions[0],'metric':metric,'ascending':bool(re.search(r'\b(lowest|weakest|smallest|least|worst|minimum)\b', q)),'objective':'diversification' if re.search(r'diversif|concentrat|dependence',q) else 'profitability' if metric in ('gross_profit','gross_margin') else 'revenue','reason':'Deterministic ranking by requested metric.'}
     if not investigation:
         return {'mode':'summary','reason':'No explicit revenue change investigation detected.'}
     def clarify(reason):
