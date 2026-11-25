@@ -33,9 +33,9 @@ def build_investigation_evidence(df, previous, current, source, sheet):
     return registry, result
 
 
-def run_investigation(question, df, previous, current, source, sheet):
+def run_investigation(question, df, previous, current, source, sheet, enabled=True):
     from finsight.ai_engine import analyze_question
     registry, investigation = build_investigation_evidence(df, previous, current, source, sheet)
-    result = analyze_question(question + '\nCompare all supplied dimensions independently. Never add changes across dimensions. Intersection evidence contains only the five largest absolute changes, or fewer if unavailable. Distinguish arithmetic attribution from causation. The selected comparison is not the entire dataset.', registry)
+    result = analyze_question(question + '\nCompare all supplied dimensions independently. Never add changes across dimensions. Intersection evidence contains only the five largest absolute changes, or fewer if unavailable. Distinguish arithmetic attribution from causation. The selected comparison is not the entire dataset.', registry, enabled=enabled)
     result['investigation'] = investigation
     return result

@@ -5,6 +5,17 @@ from finsight.scenario import run_scenario
 
 def resolve_scenario_followup(question, previous):
     q=question.strip().rstrip('?.')
+    old=(previous or {}).get('effective_question') or (previous or {}).get('question','')
+    explicit=re.fullmatch(r'(?:what if |and )?(?:we )?(revenue|cogs)\s+(increases?|decreases?|rises?|falls?|grows?|declines?)\s+(?:by |to )?(\d+(?:\.\d+)?)\s*%\s+instead',q,re.I)
+    if explicit:
+        if not (previous or {}).get('scenario'):
+            return question,'Start a scenario before changing an assumption.'
+        metric, direction, magnitude=explicit.groups()
+        pattern=rf'\b{metric}\s+(?:increases?|decreases?|rises?|falls?|grows?|declines?|drops?|reduces?)\s+(?:by\s+)?\d+(?:\.\d+)?\s*%'
+        updated,n=re.subn(pattern,f'{metric} {direction} by {magnitude}%',old,flags=re.I)
+        if n!=1:
+            return question,'Specify an existing scenario assumption to change, or start a new scenario.'
+        return updated,None
     m=re.fullmatch(r'(?:what if |and )?(?:we )?(?:increase|decrease|change|raise|reduce)?\s*(?:it )?\s*to\s+(\d+(?:\.\d+)?)\s*%\s*(?:instead)?',q,re.I)
     if not m:
         return question, None

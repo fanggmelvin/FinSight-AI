@@ -7,7 +7,7 @@ def requested_count(question):
     if not m:return None
     return {'one':1,'two':2,'three':3,'four':4,'five':5}.get(m[1],int(m[1]) if m[1].isdigit() else 0)
 
-def direct_answer(records, route):
+def direct_answer(records, route, question=""):
     if not route or route.get('mode')!='ranking':return ''
     metric=route['metric']; dim=route['dimension']
     rows=[r for r in records if r['category']==dim.title()+' Performance' and isinstance(r['values'].get(metric),(int,float)) and math.isfinite(r['values'][metric])]
@@ -21,13 +21,26 @@ def direct_answer(records, route):
         shares=sorted([r for r in rows if isinstance(r['values'].get('revenue_share'),(int,float))],key=lambda r:r['values']['revenue_share'],reverse=True)
         dominant=shares[:2]; candidates=[r for r in shares[2:] if (r['values'].get('gross_profit') or 0)>0 and (r['values'].get('gross_margin') or 0)>0]
         candidates.sort(key=lambda r:r['values']['gross_margin'],reverse=True)
-        lines=['Retain profitable dominant business without increasing relative dependence; test expansion of smaller profitable groups.']
+        lines=[]
         if dominant:lines.append('Leading groups account for '+f"{sum(r['values']['revenue_share'] for r in dominant):.2%}"+' of revenue: '+', '.join(name(r)+f" [{r['evidence_id']}]" for r in dominant)+'.')
+        lines.append('Retain profitable dominant business without increasing relative dependence; test expansion of smaller profitable groups.')
         lines+= [row(r) for r in candidates] or ['No smaller profitable group identified in available evidence.']
         lines+=['Review losses before scaling: '+row(r)[2:] for r in rows if (r['values'].get('gross_profit') or 0)<0]
         return '\n\n'.join(lines)
     label=metric.replace('_',' '); direction='ascending' if route.get('ascending') else 'descending'
-    return f'**{dim.title()} ranking by {label} ({direction})**\n\n'+'\n'.join(row(r) for r in rows)+ ('\n\nHistorical gross profit is not a forecast of incremental returns; test demand, capacity and marginal costs before scaling.' if metric=='gross_profit' else '')
+    distinction = ''
+    if metric == 'gross_margin' and route.get('ambiguous_profitability'):
+        profits = [r for r in rows if isinstance(r['values'].get('gross_profit'), (int,float)) and math.isfinite(r['values']['gross_profit'])]
+        if profits:
+            leader = max(profits,key=lambda r:r['values']['gross_profit'])
+            distinction = f"\n\nGross profit leader: {name(leader)} ({leader['values']['gross_profit']:,.2f}) [{leader['evidence_id']}]. Gross margin and absolute gross profit measure different aspects of profitability."
+    correction = ''
+    if re.search(r'\b(?:prove|confirm|show)\s+that\b', question, re.I) and re.search(r'\b(?:most profitable|highest|lowest)\b', question, re.I):
+        named = [r for r in rows if re.search(r'(?<!\w)' + re.escape(name(r)) + r'(?!\w)', question, re.I)]
+        if len(named) == 1 and named[0]['values'][metric] != rows[0]['values'][metric]:
+            r = named[0]
+            correction = f'\n\nThe calculated {label} ranking does not support the premise about {name(r)}: {fmt(metric,r["values"][metric])} [{r["evidence_id"]}].'
+    return f'**{dim.title()} ranking by {label} ({direction})**\n\n'+'\n'.join(row(r) for r in rows)+ ('\n\nHistorical gross profit is not a forecast of incremental returns; test demand, capacity and marginal costs before scaling.' if metric=='gross_profit' else '') + distinction + correction
 
 def complete_plan(synthesis, findings, count):
     if count is None:return synthesis, None

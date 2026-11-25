@@ -11,22 +11,44 @@ class QuotaExceeded(RuntimeError):
     pass
 
 
+def quota_config():
+    dev = os.getenv('FINSIGHT_ENV', 'production') == 'development'
+    prefix = 'FINSIGHT_DEV_' if dev else 'FINSIGHT_'
+    path = Path(os.getenv(prefix + 'QUOTA_DB', str(Path.home() / ('.finsight-api-quota-dev.sqlite3' if dev else '.finsight-api-quota.sqlite3'))))
+    windows = [(name, seconds, int(os.getenv(prefix + name.upper() + '_REQUESTS', str(default)))) for name, seconds, default in [('minute',60,5),('daily',86400,50),('monthly',2592000,300)]]
+    return path, windows
+
+
+def quota_status(now=None):
+    now = time.time() if now is None else now
+    path, windows = quota_config()
+    rows = []
+    if path.exists():
+        with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True) as db:
+            timestamps = [r[0] for r in db.execute('SELECT ts FROM requests WHERE ts > ? ORDER BY ts', (now-2592000,))]
+    else:
+        timestamps = []
+    for name, seconds, limit in windows:
+        active = [t for t in timestamps if t > now-seconds]
+        remaining = max(0, limit-len(active))
+        reset = max(0, active[len(active)-limit]+seconds-now) if limit > 0 and len(active)>=limit else None
+        rows.append(dict(window=name, limit=limit, used=len(active), remaining=remaining, retry_seconds=reset))
+    return rows
+
+
 def reserve_request(*, now=None):
     now = time.time() if now is None else now
-    path = Path(os.getenv('FINSIGHT_QUOTA_DB', str(Path.home() / '.finsight-api-quota.sqlite3')))
-    daily = int(os.getenv('FINSIGHT_DAILY_REQUESTS', '50'))
-    monthly = int(os.getenv('FINSIGHT_MONTHLY_REQUESTS', '300'))
-    minute = int(os.getenv('FINSIGHT_MINUTE_REQUESTS', '5'))
-    if min(daily, monthly, minute) < 1:
+    path, windows = quota_config()
+    if any(limit < 1 for _, _, limit in windows):
         raise QuotaExceeded('Live AI quota disabled')
     with sqlite3.connect(path, timeout=5) as db:
         db.execute('CREATE TABLE IF NOT EXISTS requests (ts REAL NOT NULL)')
         db.execute('BEGIN IMMEDIATE')
         db.execute('DELETE FROM requests WHERE ts <= ?', (now - 30*86400,))
-        for window, limit in ((60, minute), (86400, daily), (30*86400, monthly)):
+        for name, window, limit in windows:
             count = db.execute('SELECT COUNT(*) FROM requests WHERE ts > ?', (now-window,)).fetchone()[0]
             if count >= limit:
-                raise QuotaExceeded('Shared live AI request quota reached')
+                raise QuotaExceeded(f'Shared live AI {name} request quota reached')
         db.execute('INSERT INTO requests VALUES (?)', (now,))
 
 

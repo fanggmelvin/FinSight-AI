@@ -13,8 +13,10 @@ def route_question(question, available_months):
     years_requested = set(re.findall(r'\b(?:19|20)\d{2}\b', q))
     if years_requested - {m[:4] for m in available}:
         return {'mode':'clarify','reason':'Requested year is not available in selected data.'}
-    if re.search(r'\b(net income|net profit|ebitda|cash flow|earnings per share)\b', q):
-        return {'mode':'clarify','reason':'This dataset does not establish the requested metric; gross profit is not net income.'}
+    from finsight.request_policy import missing_metrics
+    missing = missing_metrics(q)
+    if missing:
+        return {'mode':'clarify','reason':missing}
     if not investigation and len(years_requested)>1:
         return {'mode':'clarify','reason':'Specify a single reporting year; annual comparisons are not supported.'}
     if not investigation and len(dimensions)==1:
@@ -25,7 +27,7 @@ def route_question(question, available_months):
         if not metric and re.search(r'\b(revenue|sales)\b', q):
             metric = 'revenue'
         if metric:
-            return {'mode':'ranking','dimension':dimensions[0],'metric':metric,'ascending':bool(re.search(r'\b(lowest|weakest|smallest|least|worst|minimum)\b', q)),'objective':'diversification' if re.search(r'diversif|concentrat|dependence',q) else 'profitability' if metric in ('gross_profit','gross_margin') else 'revenue','reason':'Deterministic ranking by requested metric.'}
+            return {'mode':'ranking','dimension':dimensions[0],'metric':metric,'ambiguous_profitability':bool(re.search(r'profitab',q) and not re.search(r'gross margin|gross profit',q)),'ascending':bool(re.search(r'\b(lowest|weakest|smallest|least|worst|minimum)\b', q)),'objective':'diversification' if re.search(r'diversif|concentrat|dependence',q) else 'profitability' if metric in ('gross_profit','gross_margin') else 'revenue','reason':'Deterministic ranking by requested metric.'}
     if not investigation:
         return {'mode':'summary','reason':'No explicit revenue change investigation detected.'}
     def clarify(reason):

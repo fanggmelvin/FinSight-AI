@@ -75,7 +75,7 @@ def report_groups(records):
     return groups
 
 
-def parse_structured_commentary(raw, registry):
+def parse_structured_commentary(raw, registry, route=None, action_only=False):
     import json
     try:
         data = json.loads(raw)
@@ -83,10 +83,12 @@ def parse_structured_commentary(raw, registry):
         return '', 'Invalid commentary JSON'
     if not isinstance(data, dict) or not isinstance(data.get('items'), list) or not data['items']:
         return '', 'Missing commentary items'
+    from finsight.commentary_grounding import ranking_rows, ranking_observation, action_diagnostic
+    ranked = ranking_rows(registry.records, route)
     lines = []
     errors = []
     known = {r['evidence_id'] for r in registry.records}
-    for item in data['items']:
+    for index, item in enumerate(data['items'], 1):
         if not isinstance(item, dict):
             errors.append('Invalid item'); continue
         ids = item.get('evidence_ids')
@@ -94,16 +96,67 @@ def parse_structured_commentary(raw, registry):
             errors.append('Missing or unknown evidence reference'); continue
         priority = item.get('priority')
         observation, action = item.get('observation'), item.get('action')
+        if ranked:
+            observation = ''  # Discard model observations before any validation.
+            observation = ranking_observation(ranked, ids, route['metric'])
+        if action_only and not ranked:
+            # Financial observations are generated solely from cited evidence.
+            facts = build_facts(registry)
+            parts = []
+            for r in registry.records:
+                if r['evidence_id'] not in ids:
+                    continue
+                fields = [f"{k.replace('_', ' ')} {facts[r['evidence_id']+'.'+k]}" for k in ('gross_profit','gross_margin','revenue_share','revenue','value') if r['evidence_id']+'.'+k in facts]
+                parts.append(str(r['title']).replace('\n',' ') + (': ' + '; '.join(fields) if fields else ''))
+            observation = '; '.join(parts) + '.'
         if priority not in ('High', 'Medium', 'Low') or any(not isinstance(t, str) or not t.strip() or '\n' in t or '[' in t or ']' in t for t in (observation, action)):
             errors.append('Invalid commentary fields'); continue
         line = f'- **{priority} priority:** {observation} **Proposed action:** {action} ' + ' '.join(f'[{i}]' for i in dict.fromkeys(ids))
         from finsight.skill_workflow import qualitative_diagnostic, mask_cited_anomaly_dates
         cited = [r for r in registry.records if r['evidence_id'] in ids]
         error = commentary_diagnostic(mask_cited_anomaly_dates(line, cited), registry) or qualitative_diagnostic(observation, cited)
+        if not ranked and not error:
+            from finsight.commentary_grounding import terminology_diagnostic
+            error = terminology_diagnostic(observation + " " + action)
+        if ranked:
+            # Model observations are discarded, not treated as verified claims.
+            error = commentary_diagnostic(action + ' ' + ' '.join(f'[{i}]' for i in ids), registry) or action_diagnostic(action, route)
+            if error:
+                error = f'Item {index}, action: {error}'
+            if any(i not in {r['evidence_id'] for r in ranked} for i in ids):
+                error = 'Evidence outside requested ranking'
+            if not error:
+                observation = ranking_observation(ranked, ids, route['metric'])
+                line = f'- **{priority} priority:** {observation} **Proposed action:** {action} ' + ' '.join(f'[{i}]' for i in dict.fromkeys(ids))
+        if action_only and not ranked:
+            error = commentary_diagnostic(action + ' ' + ' '.join(f'[{i}]' for i in ids), registry) or action_diagnostic(action, route) or qualitative_diagnostic(action, cited)
+            if error:
+                error = f'Item {index}, action: {error}'
         if error:
             errors.append(error); continue
+        if action_only and any(action == previous.split(' **Proposed action:** ',1)[-1].split(' [E',1)[0] for previous in lines):
+            errors.append('Duplicate strategic action'); continue
         lines.append(line)
     lines.sort(key=lambda line: next((i for i,p in enumerate(('High','Medium','Low')) if line.startswith(f'- **{p} priority:')), 3))
+    if ranked and lines and not any('[' + ranked[0]['evidence_id'] + ']' in line for line in lines):
+        return '', 'Ranking leader not addressed; local recommendations used.'
+    if ranked and lines and route.get('ambiguous_profitability'):
+        profits = [r for r in ranked if isinstance(r['values'].get('gross_profit'), (int, float))]
+        if profits:
+            leader = max(profits, key=lambda r:r['values']['gross_profit'])
+            eid = leader['evidence_id']
+            if not any(f'[{eid}]' in line for line in lines):
+                lines.append(f"- **Local action:** {ranking_observation([leader], [eid], 'gross_profit')} Review volume, pricing and incremental COGS before allocating resources. [{eid}]")
+    if ranked:
+        seen = set()
+        for i, line in enumerate(lines):
+            if ' **Proposed action:** ' not in line:
+                continue
+            prefix, action = line.split(' **Proposed action:** ', 1)
+            observation = prefix.split(' priority:** ', 1)[-1]
+            if observation in seen:
+                lines[i] = prefix.split(' priority:** ', 1)[0] + ' priority:** **Proposed action:** ' + action
+            seen.add(observation)
     return '\n\n'.join(lines), '; '.join(dict.fromkeys(errors)) or None
 
 

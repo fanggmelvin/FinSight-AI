@@ -1,3 +1,4 @@
+import re
 
 import hashlib
 import os
@@ -176,7 +177,7 @@ def show_executive_analysis(result):
         st.subheader('Calculated management insights')
         st.markdown(findings)
         st.caption('Rankings are calculated from available evidence; suggested reviews are not established causes.')
-    if not executive:
+    if not executive and not result.get("local_plan"):
         st.subheader('Calculated findings and management recommendations')
         st.markdown(result['commentary'].split('\n\n**Calculated supporting findings**\n\n', 1)[-1] or 'Commentary unavailable; review the calculated evidence.')
         st.caption('Financial findings are calculated locally. Supporting findings and fallback actions are rule-based. Actions are not established causes or guaranteed outcomes.')
@@ -1479,13 +1480,24 @@ elif page == "AI Copilot":
 
     live_scenario_ai = os.getenv("FINSIGHT_LIVE_AI") == "1"
     scenario_demo = st.session_state.get("scenario_demo_source", False)
+    data_ai = live_scenario_ai and (scenario_demo or st.checkbox("Allow AI to receive aggregated evidence from this uploaded dataset", value=False, key=f"copilot_consent_{st.session_state.get('dataset_id')}"))
+    if live_scenario_ai:
+        from finsight.api_guard import quota_status
+        with st.expander("Live AI quota"):
+            try:
+                for quota in quota_status():
+                    st.caption(f"{quota['window'].title()}: {quota['remaining']} / {quota['limit']} remaining" + (f"; next request in about {int(quota['retry_seconds'])+1} seconds" if quota['retry_seconds'] is not None else ""))
+            except Exception:
+                st.caption("Quota status unavailable; request guard remains active.")
+    from finsight.request_policy import allow_ai, cached_analysis
+    deeper_ai = st.checkbox("Include AI interpretation for basic financial questions", value=False, disabled=not data_ai) and data_ai
     scenario_ai = st.checkbox(
         "Include AI strategic interpretation for scenarios",
         value=bool(scenario_demo and live_scenario_ai),
         key=f"scenario_ai_{scenario_demo}_{st.session_state.get('dataset_id')}_{live_scenario_ai}",
-        disabled=not live_scenario_ai,
-    ) and live_scenario_ai
-    st.caption("Live AI shares your question, source labels and aggregated financial evidence with OpenAI. Use only authorized data." if live_scenario_ai else "Local analysis only; no data is sent to OpenAI.")
+        disabled=not data_ai,
+    ) and data_ai
+    st.caption("Live AI shares your question, source labels and aggregated financial evidence with OpenAI. Use only authorized data." if data_ai else "Local analysis only; no data is sent to OpenAI.")
     scope = (st.session_state.get("dataset_id"), source, sheet, mode, dimension, previous, current, hashlib.sha256(df.to_csv(index=False).encode()).hexdigest())
     if st.session_state.get("ai_scope") != scope:
         st.session_state["ai_scope"] = scope
@@ -1493,6 +1505,7 @@ elif page == "AI Copilot":
     history = st.session_state["ai_history"]
     if st.button("Clear conversation"):
         history.clear()
+        st.session_state.pop("validated_ai_cache", None)
         st.rerun()
     with st.expander("Conversation help", expanded=False):
         st.caption("Follow-up ranking questions can reuse the previous dimension, metric and reporting year. Changing filters or clearing the conversation resets context.")
@@ -1513,6 +1526,10 @@ elif page == "AI Copilot":
     suggested_submit = suggestion is not None
 
     def render_answer(result, answer_index):
+        if result.get("cache_hit"):
+            st.caption("Reused validated session response; no new AI request.")
+        if result.get("session_limited"):
+            st.caption("Session AI limit reached; local analysis used.")
         if "scenario" in result:
             scenario = result["scenario"]
             st.subheader("Financial scenario — illustrative, not a forecast")
@@ -1525,6 +1542,9 @@ elif page == "AI Copilot":
                 st.markdown("**" + case["label"] + "**")
                 base, projected = scenario["baseline"], case["metrics"]
                 st.write(executive_summary(base, projected))
+                if case["label"].startswith("Target via"):
+                    metric = "Revenue" if "via revenue" in case["label"] else "COGS"
+                    st.metric("Required " + metric, format_value(projected[metric]), format_value(projected[metric]-base[metric], delta=True))
                 cols = st.columns(2)
                 for col, metric in zip(cols, ("Gross profit", "Gross margin (%)")):
                     margin = metric.endswith("(%)")
@@ -1572,6 +1592,8 @@ elif page == "AI Copilot":
                 st.caption(inv["note"])
                 st.dataframe([{"Dimension": d, "Net revenue change": round(b["net_change"], 2), "Reconciliation difference": round(b["reconciliation_difference"], 2)} for d,b in inv["dimensions"].items()])
         show_executive_analysis(result)
+        diagnostic = result.get("numerical_verification", {}).get("commentary_diagnostic")
+        if diagnostic: st.caption(diagnostic)
         verification = result["verification"]
         check = result.get("numerical_verification", {})
         if not verification["passed"]:
@@ -1631,6 +1653,12 @@ elif page == "AI Copilot":
                 from finsight.ai_engine import analyze_financial_data, investigate_revenue_change
                 from finsight.question_router import route_question
                 original_question = question
+                from finsight.question_safety import question_warning
+                warning = question_warning(question)
+                if warning:
+                    st.warning(warning)
+                    st.info("No AI request was sent.")
+                    st.stop()
                 from finsight.scenario import is_scenario, run_scenario
                 from finsight.scenario_presentation import resolve_scenario_followup, sensitivity
                 if mode == "Automatic":
@@ -1639,6 +1667,11 @@ elif page == "AI Copilot":
                         st.warning(scenario_clarification)
                         st.info("No AI request was sent.")
                         st.stop()
+                if mode == "Automatic" and re.search(r"\bshould\b.*\bdiscontinue\b", question, re.I):
+                    from finsight.request_policy import closure_decision
+                    st.markdown(closure_decision(question, df))
+                    st.info("No AI request was sent.")
+                    st.stop()
                 if mode == "Automatic" and is_scenario(question):
                     try:
                         scenario = run_scenario(question, df)
@@ -1649,7 +1682,7 @@ elif page == "AI Copilot":
                     result = {"question": original_question, "effective_question": question, "scenario": scenario, "sensitivity": sensitivity(question, df), "route": {"mode": "scenario"}}
                     from finsight.scenario_commentary import interpret_scenario
                     with st.spinner("Preparing scenario interpretation..."):
-                        result["scenario_commentary"] = interpret_scenario(question, scenario, enabled=scenario_ai)
+                        result = cached_analysis(st.session_state, (scope, question, "scenario"), scenario_ai, lambda enabled: dict(result, scenario_commentary=interpret_scenario(question, scenario, enabled=enabled)))
                     history.append(result)
                     render_answer(result, len(history)-1)
                     st.stop()
@@ -1680,17 +1713,26 @@ elif page == "AI Copilot":
                     st.warning(route["reason"])
                     st.info("Please rephrase your question or choose manual analysis. No AI request was sent.")
                     st.stop()
+                if mode == "Automatic" and route["mode"] in ("summary", "ranking"):
+                    from finsight.request_policy import named_analysis
+                    direct = named_analysis(question, df)
+                    if direct is not None:
+                        st.markdown(direct)
+                        st.info("No AI request was sent.")
+                        st.stop()
                 if route["mode"] == "revenue_investigation" and route["dimension"] not in df.columns:
                     st.warning("The requested business dimension is not mapped in this dataset. No AI request was sent.")
                     st.stop()
-                with st.spinner("Calculating evidence and generating analysis..."):
+                def run_analysis(enabled):
                     if route["mode"] == "multi_investigation":
                         from finsight.investigation_bridge import run_investigation
-                        result = run_investigation(question, df, route["previous_month"], route["current_month"], source, sheet)
+                        return run_investigation(question, df, route["previous_month"], route["current_month"], source, sheet, enabled=enabled)
                     elif route["mode"] == "revenue_investigation":
-                        result = investigate_revenue_change(question, df, route["dimension"], route["current_month"], route["previous_month"], source, sheet)
+                        return investigate_revenue_change(question, df, route["dimension"], route["current_month"], route["previous_month"], source, sheet, enabled=enabled)
                     else:
-                        result = analyze_financial_data(question, df, source, sheet, route=route)
+                        return analyze_financial_data(question, df, source, sheet, route=route, enabled=enabled)
+                with st.spinner("Calculating evidence and generating analysis..."):
+                    result = cached_analysis(st.session_state, (scope, question, str(route)), data_ai and allow_ai(question, route, deeper_ai), run_analysis)
                 result["route"] = route
                 result["effective_question"] = question
                 result["question"] = original_question
@@ -1730,6 +1772,7 @@ elif page == "Financial Reports":
     if st.session_state.get("report_scope") != scope:
         st.session_state["report_scope"] = scope
         st.session_state.pop("executive_report", None)
+    report_ai = os.getenv("FINSIGHT_LIVE_AI") == "1" and (st.session_state.get("scenario_demo_source", False) or st.checkbox("Allow AI to receive aggregated evidence for this uploaded dataset report", value=False, key=f"report_consent_{st.session_state.get('dataset_id')}"))
     if st.button("Generate Executive Report", type="primary"):
         st.session_state.pop("executive_report", None)
         try:
@@ -1743,7 +1786,7 @@ elif page == "Financial Reports":
                 "If evidence is missing, state that explicitly. Recommendations are proposed actions, not proven outcomes."
             )
             with st.spinner("Preparing financial evidence and executive report..."):
-                result = analyze_financial_data(question, df, source, sheet)
+                result = analyze_financial_data(question, df, source, sheet, enabled=report_ai)
             st.session_state["executive_report"] = {"result": result, "generated": datetime.now(timezone.utc).isoformat()}
         except Exception as error:
             status = getattr(error, "status_code", None)

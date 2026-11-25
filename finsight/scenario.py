@@ -5,6 +5,8 @@ from finsight.reliability import scope_data, period_label
 
 
 def is_scenario(question):
+    if re.search(r'\bshould\b', question, re.I):
+        return False
     return bool(re.search(r'\b(?:what if|what happens if|scenario|simulate|target gross margin|achieve a?\s*\d+(?:\.\d+)?%\s*gross margin|discontinue|increase revenue|reduce cogs)\b', question, re.I))
 
 
