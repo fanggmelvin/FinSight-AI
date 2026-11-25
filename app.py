@@ -437,6 +437,7 @@ if not st.session_state.get("demo_initialized"):
     if "financial_data" not in st.session_state:
         try:
             st.session_state.update(load_demo_state())
+            st.session_state["scenario_demo_source"] = True
         except Exception:
             st.warning("Sample data unavailable. Upload a financial file to continue.")
 
@@ -492,6 +493,7 @@ with st.sidebar:
     if st.button("Load sample dataset"):
         clear_validation()
         st.session_state.update(load_demo_state())
+        st.session_state["scenario_demo_source"] = True
         st.session_state.pop("executive_report", None)
         st.rerun()
     if os.getenv("FINSIGHT_LIVE_AI") != "1":
@@ -621,6 +623,7 @@ elif page == "Data Upload":
             st.session_state["dataset_id"] = dataset_id
             st.session_state["financial_data"] = df
             st.session_state["file_name"] = uploaded_file.name
+            st.session_state["scenario_demo_source"] = False
             st.session_state["sheet_name"] = selected_sheet
 
             st.success("File loaded successfully!")
@@ -1452,7 +1455,6 @@ elif page == "AI Copilot":
     df = apply_filters(require_data(), "copilot")
     source = st.session_state["file_name"]
     sheet = st.session_state["sheet_name"]
-    st.info("Financial calculations are performed locally. Aggregated evidence, source labels and your question are sent to OpenAI when you submit a question. Financial figures are rendered locally; no additional AI verification request is made. Use only data you are authorized to share." if os.getenv("FINSIGHT_LIVE_AI") == "1" else "Public demo: financial calculations and rule-based recommendations run locally. No data is sent to OpenAI and no API key is required.")
 
     with st.expander("Analysis mode and comparison settings", expanded=False):
         mode = st.radio("Analysis mode", ["Automatic", "Financial summary", "Revenue change investigation", "Multi-dimensional investigation"], horizontal=True)
@@ -1475,6 +1477,15 @@ elif page == "AI Copilot":
         else:
             suggestions = ["Summarize financial performance.", "Identify profitability risks supported by the evidence.", "Which business categories contribute most to revenue?"]
 
+    live_scenario_ai = os.getenv("FINSIGHT_LIVE_AI") == "1"
+    scenario_demo = st.session_state.get("scenario_demo_source", False)
+    scenario_ai = st.checkbox(
+        "Include AI strategic interpretation for scenarios",
+        value=bool(scenario_demo and live_scenario_ai),
+        key=f"scenario_ai_{scenario_demo}_{st.session_state.get('dataset_id')}_{live_scenario_ai}",
+        disabled=not live_scenario_ai,
+    ) and live_scenario_ai
+    st.caption("Live AI shares your question, source labels and aggregated financial evidence with OpenAI. Use only authorized data." if live_scenario_ai else "Local analysis only; no data is sent to OpenAI.")
     scope = (st.session_state.get("dataset_id"), source, sheet, mode, dimension, previous, current, hashlib.sha256(df.to_csv(index=False).encode()).hexdigest())
     if st.session_state.get("ai_scope") != scope:
         st.session_state["ai_scope"] = scope
@@ -1483,7 +1494,8 @@ elif page == "AI Copilot":
     if st.button("Clear conversation"):
         history.clear()
         st.rerun()
-    st.caption("Follow-up ranking questions can reuse the previous dimension, metric and reporting year. Changing filters or clearing the conversation resets context. Resolved questions and current aggregated evidence are sent to OpenAI in live mode.")
+    with st.expander("Conversation help", expanded=False):
+        st.caption("Follow-up ranking questions can reuse the previous dimension, metric and reporting year. Changing filters or clearing the conversation resets context.")
     suggestion = None
     if not history:
         st.subheader("What would you like to analyze?")
@@ -1505,7 +1517,7 @@ elif page == "AI Copilot":
             scenario = result["scenario"]
             st.subheader("Financial scenario — illustrative, not a forecast")
             st.caption("Effective reporting months: " + scenario["period"])
-            st.caption(f"Baseline: {scenario['records']} selected records. Monetary values in source currency units. No AI request sent.")
+            st.caption(f"Baseline: {scenario['records']} selected records. Monetary values in source currency units.")
             from finsight.scenario_presentation import format_value, executive_summary
             if result.get("effective_question") != result.get("question") and result.get("effective_question"):
                 st.caption("Interpreted follow-up: " + result["effective_question"])
@@ -1517,7 +1529,7 @@ elif page == "AI Copilot":
                 for col, metric in zip(cols, ("Gross profit", "Gross margin (%)")):
                     margin = metric.endswith("(%)")
                     delta = projected[metric]-base[metric] if projected[metric] is not None and base[metric] is not None else None
-                    col.metric(metric, format_value(projected[metric], margin), format_value(delta, margin, True) if delta is not None else None)
+                    col.metric("Gross margin" if margin else metric, format_value(projected[metric], margin), format_value(delta, margin, True) if delta is not None else None)
                 table = []
                 for metric, value in base.items():
                     p = projected[metric]
@@ -1530,6 +1542,15 @@ elif page == "AI Copilot":
                 with st.expander("Sensitivity analysis"):
                     st.caption("Percentage magnitude varies; original direction and reporting scope are preserved.")
                     st.plotly_chart(px.line(pd.DataFrame(result["sensitivity"]), x="Assumption magnitude (%)", y="Gross profit", color="Cost assumption", markers=True), key=f"scenario_sensitivity_{answer_index}")
+            commentary = result.get("scenario_commentary")
+            if commentary:
+                st.markdown("**" + commentary["source"] + "**")
+                st.text(commentary["text"])
+                st.caption(commentary["status"])
+                if commentary["tokens"] is not None:
+                    st.caption(f"Reported API tokens: {commentary['tokens']}")
+            else:
+                st.caption("No AI request sent.")
             st.caption("Assumptions are illustrative. No demand, capacity, stranded costs, taxes or operating expenses are modeled. Segment removal assumes all recorded segment COGS are avoidable.")
             return
         if result.get("effective_question") and result["effective_question"] != result["question"]:
@@ -1623,6 +1644,9 @@ elif page == "AI Copilot":
                         st.info("No AI request was sent.")
                         st.stop()
                     result = {"question": original_question, "effective_question": question, "scenario": scenario, "sensitivity": sensitivity(question, df), "route": {"mode": "scenario"}}
+                    from finsight.scenario_commentary import interpret_scenario
+                    with st.spinner("Preparing scenario interpretation..."):
+                        result["scenario_commentary"] = interpret_scenario(question, scenario, enabled=scenario_ai)
                     history.append(result)
                     render_answer(result, len(history)-1)
                     st.stop()

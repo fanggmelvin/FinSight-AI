@@ -16,7 +16,8 @@ def resolve_scenario_followup(question, previous):
 
 def format_value(value, margin=False, delta=False):
     if value is None: return 'N/A'
-    return format(value, '+,.2f' if delta else ',.2f') + (' pp' if margin and delta else '%' if margin else '')
+    value = round(value, 2) or 0.0
+    return format(value, '+,.2f' if delta and value else ',.2f') + (' pp' if margin and delta else '%' if margin else '')
 
 
 def executive_summary(baseline, projected):
@@ -25,7 +26,7 @@ def executive_summary(baseline, projected):
     text=f'Gross profit {direction}' + (f' by {abs(delta):,.2f}' if delta else '') + '.'
     b,p=baseline['Gross margin (%)'],projected['Gross margin (%)']
     if b is not None and p is not None:
-        text+=f' Gross margin moves from {b:.2f}% to {p:.2f}% ({p-b:+.2f} percentage points).'
+        text+=f' Gross margin moves from {b:.2f}% to {p:.2f}% ({format_value(p-b, delta=True)} percentage points).'
     else: text+=' Gross margin is undefined when revenue is zero.'
     return text
 
