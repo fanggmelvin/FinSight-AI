@@ -1483,7 +1483,7 @@ elif page == "AI Copilot":
     if st.button("Clear conversation"):
         history.clear()
         st.rerun()
-    st.caption("Each question is analyzed independently using the selected evidence; earlier messages are displayed for reference only.")
+    st.caption("Follow-up ranking questions can reuse the previous dimension, metric and reporting year. Changing filters or clearing the conversation resets context. Resolved questions and current aggregated evidence are sent to OpenAI in live mode.")
     suggestion = None
     if not history:
         st.subheader("What would you like to analyze?")
@@ -1501,6 +1501,8 @@ elif page == "AI Copilot":
     suggested_submit = suggestion is not None
 
     def render_answer(result, answer_index):
+        if result.get("effective_question") and result["effective_question"] != result["question"]:
+            st.caption("Interpreted follow-up: " + result["effective_question"])
         if result.get("effective_period"):
             st.caption("Effective reporting months: " + result["effective_period"])
         if result.get("route"):
@@ -1573,7 +1575,14 @@ elif page == "AI Copilot":
             try:
                 from finsight.ai_engine import analyze_financial_data, investigate_revenue_change
                 from finsight.question_router import route_question
+                original_question = question
                 if mode == "Automatic":
+                    from finsight.conversation import resolve_followup
+                    question, clarification = resolve_followup(question, history[-1] if history else None)
+                    if clarification:
+                        st.warning(clarification)
+                        st.info("No AI request was sent.")
+                        st.stop()
                     months = sorted(df["date"].dt.to_period("M").dropna().astype(str).unique())
                     route = route_question(question, months)
                 elif mode == "Multi-dimensional investigation":
@@ -1606,6 +1615,8 @@ elif page == "AI Copilot":
                     else:
                         result = analyze_financial_data(question, df, source, sheet, route=route)
                 result["route"] = route
+                result["effective_question"] = question
+                result["question"] = original_question
                 history.append(result)
                 render_answer(result, len(history) - 1)
             except Exception as error:
