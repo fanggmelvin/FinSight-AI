@@ -42,6 +42,9 @@ st.set_page_config(
 # HELPER FUNCTIONS
 # ==========================================
 
+from finsight.ui_theme import apply_theme
+apply_theme()
+
 def show_numerical_verification(result):
     st.subheader("Numerical claim checks")
     check = result.get("numerical_verification", {})
@@ -155,7 +158,7 @@ def show_executive_analysis(result):
         if data:
             frame = pd.DataFrame(data).sort_values('Revenue change')
             frame['Direction'] = frame['Revenue change'].map(lambda x: 'Increase' if x > 0 else 'Decrease' if x < 0 else 'Unchanged')
-            fig = px.bar(frame, x='Revenue change', y='Contributor', color='Direction', orientation='h', title=group + ' revenue contributions', color_discrete_map={'Increase':'#34D399','Decrease':'#F87171','Unchanged':'#94A3B8'})
+            fig = px.bar(frame, x='Revenue change', y='Contributor', color='Direction', orientation='h', title=group + ' revenue contributions', color_discrete_map={'Increase':'#16967A','Decrease':'#B91C1C','Unchanged':'#94A3B8'})
             fig.update_layout(height=max(300, 45*len(frame)+100), showlegend=False)
             st.plotly_chart(fig, width='stretch')
     findings = deterministic_insights(records, result.get("route", {}).get("direction"))
@@ -342,13 +345,18 @@ def apply_filters(df, prefix):
 def style_chart(fig):
 
     fig.update_layout(
-        template="plotly_dark",
+        template="plotly_white",
+        font=dict(color="#334155", family="Arial"),
+        colorway=["#426E9B", "#16967A", "#B45309", "#64748B"],
+        hoverlabel=dict(bgcolor="white", font_color="#10243D"),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=20, r=20, t=55, b=20),
         height=380
     )
 
+    fig.update_xaxes(gridcolor="#E5EAF0", automargin=True)
+    fig.update_yaxes(gridcolor="#E5EAF0", automargin=True)
     return fig
 
 
@@ -424,18 +432,24 @@ with st.sidebar:
 
     st.divider()
 
-    page = st.radio(
-        "Navigation",
-        [
-            "Overview",
-            "Data Upload",
-            "Financial Analysis",
-            "Performance Drivers",
-            "Anomaly Detection",
-            "AI Copilot",
-            "Financial Reports"
-        ]
-    )
+    pages = {
+        "Overview": ":material/dashboard:",
+        "Data Upload": ":material/upload_file:",
+        "Financial Analysis": ":material/monitoring:",
+        "Performance Drivers": ":material/insights:",
+        "Anomaly Detection": ":material/warning:",
+        "AI Copilot": ":material/auto_awesome:",
+        "Financial Reports": ":material/description:",
+    }
+    if st.session_state.get("workspace_page") not in pages:
+        st.session_state["workspace_page"] = "Overview"
+    st.caption("WORKSPACE")
+    for name, icon in pages.items():
+        if st.button(name, icon=icon, key=f"nav_{name}", width="stretch",
+                     type="primary" if st.session_state["workspace_page"] == name else "secondary"):
+            st.session_state["workspace_page"] = name
+            st.rerun()
+    page = st.session_state["workspace_page"]
 
     st.divider()
 
@@ -464,7 +478,7 @@ with st.sidebar:
         st.rerun()
     if os.getenv("FINSIGHT_LIVE_AI") != "1":
         st.caption("Public demo: local analysis only; no API calls.")
-    st.caption("Version 0.16.2 | Demo")
+    st.caption("Version 0.17.0 | UI preview")
     st.caption("Independent Portfolio Project")
 
 
@@ -474,93 +488,52 @@ with st.sidebar:
 
 if page == "Overview":
 
-    st.title("FinSight AI")
-
-    st.subheader(
-        "Your Intelligent Financial Analyst"
-    )
-
-    st.write(
-        "Transform financial data into actionable "
-        "business insights through tested financial "
-        "calculations and transparent evidence."
-    )
-
-    st.divider()
+    st.caption("WORKSPACE / OVERVIEW")
+    st.title("Financial overview")
+    st.write("Monitor business performance and uncover financial insights.")
 
     if "validated_data" in st.session_state:
-
         df = st.session_state["validated_data"]
-
+        st.caption(f"{len(df):,} validated records · {st.session_state.get('file_name', 'Active dataset')}")
         show_metrics(df)
-
-        st.caption(
-            "Metrics reflect all validated records."
-        )
-
+        st.caption("Metrics reflect all validated records.")
+        monthly = calculate_monthly_performance(df)
+        left, right = st.columns([2, 1])
+        with left:
+            with st.container(border=True):
+                st.subheader("Revenue performance")
+                fig = px.bar(monthly, x="month", y="revenue", labels={"month": "Month", "revenue": "Revenue"})
+                fig.update_traces(marker_color="#426E9B")
+                fig.update_yaxes(tickprefix="$")
+                st.plotly_chart(style_chart(fig), width="stretch")
+        with right:
+            with st.container(border=True):
+                st.subheader("Gross margin")
+                fig = px.line(monthly, x="month", y="gross_margin", markers=True, labels={"month": "Month", "gross_margin": "Margin"})
+                fig.update_traces(line_color="#16967A")
+                fig.update_yaxes(tickformat=".0%")
+                st.plotly_chart(style_chart(fig), width="stretch")
     else:
+        st.info("Upload and validate a dataset to view your financial dashboard.")
 
-        cols = st.columns(4)
-
-        for col, label in zip(
-            cols,
-            [
-                "Total Revenue",
-                "Total COGS",
-                "Gross Profit",
-                "Gross Margin"
-            ]
-        ):
-            col.metric(label, "—")
-
-    st.divider()
-
-    st.subheader("Platform Capabilities")
-
-    left, right = st.columns(2)
-
-    with left:
-
-        st.markdown("### Financial Data Validation")
-
-        st.write(
-            "Automatically map and validate "
-            "financial data from Excel and CSV files."
-        )
-
-        st.markdown("### Performance Intelligence")
-
-        st.write(
-            "Analyze profitability and identify "
-            "contributors to financial changes."
-        )
-
-    with right:
-
-        st.markdown("### Financial Anomaly Detection")
-
-        st.write(
-            "Flag unusual revenue movements "
-            "and gross margin compression."
-        )
-
-        st.markdown("### AI Financial Copilot")
-
-        st.write(
-            "Evidence-backed financial explanations."
-        )
-
-        st.caption("AI Copilot available after data validation.")
-
-    st.divider()
-
-    st.subheader("Calculation Methodology")
-
-    st.write(
-        "Financial calculations are performed "
-        "by a deterministic Python engine, "
-        "independently of the AI model."
-    )
+    st.subheader("Explore your workspace")
+    cards = [
+        ("Financial Analysis", "Explore revenue, costs and profitability."),
+        ("Performance Drivers", "Understand contributors to financial changes."),
+        ("Anomaly Detection", "Review unusual movements and margin compression."),
+        ("AI Copilot", "Ask evidence-backed financial questions."),
+    ]
+    for offset in (0, 2):
+        for col, (name, description) in zip(st.columns(2), cards[offset:offset+2]):
+            with col:
+                with st.container(border=True):
+                    st.markdown(f"**{name}**")
+                    st.write(description)
+                    if st.button(f"Open {name}", key=f"overview_{name}", width="stretch"):
+                        st.session_state["workspace_page"] = name
+                        st.rerun()
+    with st.expander("Calculation methodology"):
+        st.write("Financial calculations are performed by a deterministic Python engine, independently of the AI model.")
 
 
 # ==========================================
@@ -889,7 +862,7 @@ elif page == "Financial Analysis":
         )
 
         fig.update_traces(
-            line_color="#38BDF8"
+            line_color="#426E9B"
         )
 
         st.plotly_chart(
@@ -908,7 +881,7 @@ elif page == "Financial Analysis":
         )
 
         fig.update_traces(
-            line_color="#34D399"
+            line_color="#16967A"
         )
 
         st.plotly_chart(
@@ -1043,7 +1016,7 @@ elif page == "Performance Drivers":
             y=dimension,
             orientation="h",
             title="Revenue Ranking",
-            color_discrete_sequence=["#38BDF8"]
+            color_discrete_sequence=["#426E9B"]
         )
 
         fig.update_yaxes(
@@ -1063,7 +1036,7 @@ elif page == "Performance Drivers":
             y=dimension,
             orientation="h",
             title="Gross Profit Ranking",
-            color_discrete_sequence=["#34D399"]
+            color_discrete_sequence=["#16967A"]
         )
 
         fig.update_yaxes(
@@ -1201,8 +1174,8 @@ elif page == "Performance Drivers":
         y="revenue_change",
         color="direction",
         color_discrete_map={
-            "Increase": "#34D399",
-            "Decrease": "#F87171",
+            "Increase": "#16967A",
+            "Decrease": "#B91C1C",
             "Unchanged": "#94A3B8"
         },
         title="Revenue Change Attribution"
@@ -1429,14 +1402,14 @@ elif page == "Anomaly Detection":
     fig.add_hline(
         y=0.20,
         line_dash="dash",
-        line_color="#34D399",
+        line_color="#16967A",
         annotation_text="+20% threshold"
     )
 
     fig.add_hline(
         y=-0.20,
         line_dash="dash",
-        line_color="#F87171",
+        line_color="#B91C1C",
         annotation_text="-20% threshold"
     )
 
@@ -1488,8 +1461,12 @@ elif page == "AI Copilot":
         history.clear()
         st.rerun()
     st.caption("Each question is analyzed independently using the selected evidence; earlier messages are displayed for reference only.")
-    suggestion = st.selectbox("Suggested question", ["Choose a question"] + suggestions)
-    suggested_submit = st.button("Ask suggested question", disabled=suggestion == "Choose a question")
+    st.markdown("**Suggested questions**")
+    suggestion = None
+    for i, (col, prompt) in enumerate(zip(st.columns(3), suggestions)):
+        if col.button(prompt, key=f"suggestion_{i}", width="stretch"):
+            suggestion = prompt
+    suggested_submit = suggestion is not None
 
     def render_answer(result):
         if result.get("effective_period"):
