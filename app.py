@@ -42,7 +42,10 @@ st.set_page_config(
 # HELPER FUNCTIONS
 # ==========================================
 
-def show_numerical_verification(result):
+from finsight.ui_theme import apply_theme
+apply_theme()
+
+def show_numerical_verification(result, compact=False):
     st.subheader("Numerical claim checks")
     check = result.get("numerical_verification", {})
     if check.get("mode") == "deterministic":
@@ -61,7 +64,7 @@ def show_numerical_verification(result):
     if check.get("extraction_status") != "completed":
         st.warning("Numerical claim extraction incomplete or unavailable. Manual review required.")
     if check.get("errors"):
-        with st.expander("Extraction diagnostics", expanded=True):
+        with (st.container() if compact else st.expander("Extraction diagnostics", expanded=True)):
             st.json(check["errors"])
     st.caption(f"Extraction batches: {check.get('batches', 'N/A')} | Surface coverage warnings (separate from claim counts): {check.get('coverage_warnings', 'N/A')}")
     cols = st.columns(3)
@@ -71,7 +74,7 @@ def show_numerical_verification(result):
         st.warning("Some extracted claims failed or require review.")
     st.caption("AI proposes claim mappings; Python checks mapped values and rankings. Extraction may miss claims or map them incorrectly. Passing checks do not establish full report accuracy.")
     st.caption(f"Additional verification request tokens: {check.get('tokens')}")
-    with st.expander("Numerical verification details"):
+    with (st.container() if compact else st.expander("Numerical verification details")):
         if check.get("coverage_details"):
             st.json(check["coverage_details"])
         for item in check.get("results", []):
@@ -155,7 +158,7 @@ def show_executive_analysis(result):
         if data:
             frame = pd.DataFrame(data).sort_values('Revenue change')
             frame['Direction'] = frame['Revenue change'].map(lambda x: 'Increase' if x > 0 else 'Decrease' if x < 0 else 'Unchanged')
-            fig = px.bar(frame, x='Revenue change', y='Contributor', color='Direction', orientation='h', title=group + ' revenue contributions', color_discrete_map={'Increase':'#34D399','Decrease':'#F87171','Unchanged':'#94A3B8'})
+            fig = px.bar(frame, x='Revenue change', y='Contributor', color='Direction', orientation='h', title=group + ' revenue contributions', color_discrete_map={'Increase':'#16967A','Decrease':'#B91C1C','Unchanged':'#94A3B8'})
             fig.update_layout(height=max(300, 45*len(frame)+100), showlegend=False)
             st.plotly_chart(fig, width='stretch')
     findings = deterministic_insights(records, result.get("route", {}).get("direction"))
@@ -282,47 +285,46 @@ def require_data():
 
 def apply_filters(df, prefix):
 
-    st.subheader("Analysis Filters")
+    with st.expander("Analysis filters", expanded=False):
+        years = sorted(
+            df["date"].dt.year.unique().tolist()
+        )
 
-    years = sorted(
-        df["date"].dt.year.unique().tolist()
-    )
+        selected_year = st.selectbox(
+            "Financial Year",
+            ["All Years"] + years,
+            key=f"{prefix}_year"
+        )
 
-    selected_year = st.selectbox(
-        "Financial Year",
-        ["All Years"] + years,
-        key=f"{prefix}_year"
-    )
+        if selected_year != "All Years":
 
-    if selected_year != "All Years":
+            df = df[
+                df["date"].dt.year == selected_year
+            ]
 
-        df = df[
-            df["date"].dt.year == selected_year
-        ]
+        cols = st.columns(3)
 
-    cols = st.columns(3)
+        for i, field in enumerate(
+            ["segment", "country", "product"]
+        ):
 
-    for i, field in enumerate(
-        ["segment", "country", "product"]
-    ):
+            if field in df.columns:
 
-        if field in df.columns:
-
-            options = sorted(
-                df[field].dropna().unique().tolist()
-            )
-
-            with cols[i]:
-
-                selected = st.multiselect(
-                    field.title(),
-                    options,
-                    key=f"{prefix}_{field}"
+                options = sorted(
+                    df[field].dropna().unique().tolist()
                 )
 
-            if selected:
+                with cols[i]:
 
-                df = df[df[field].isin(selected)]
+                    selected = st.multiselect(
+                        field.title(),
+                        options,
+                        key=f"{prefix}_{field}"
+                    )
+
+                if selected:
+
+                    df = df[df[field].isin(selected)]
 
     if df.empty:
 
@@ -342,13 +344,27 @@ def apply_filters(df, prefix):
 def style_chart(fig):
 
     fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=20, r=20, t=55, b=20),
-        height=380
+        template="plotly_white",
+        font=dict(color="#334155", family="Arial"),
+        colorway=["#426E9B", "#16967A", "#B45309", "#64748B"],
+        hoverlabel=dict(bgcolor="white", font_color="#10243D"),
+        paper_bgcolor="#FFFFFF",
+        plot_bgcolor="#FFFFFF",
+        margin=dict(l=20, r=20, t=48 if fig.layout.title.text else 15, b=20),
+        height=330
     )
 
+    fig.update_xaxes(gridcolor="#E5EAF0", automargin=True)
+    fig.update_yaxes(gridcolor="#E5EAF0", automargin=True)
+    labels = {"month": "Month", "revenue": "Revenue", "gross_profit": "Gross profit", "gross_margin": "Gross margin", "revenue_growth": "Revenue growth", "revenue_change": "Revenue change", "product": "Product", "country": "Country", "segment": "Segment", "direction": "Direction", "cogs": "Cost of goods sold"}
+    for axis in (fig.layout.xaxis, fig.layout.yaxis):
+        raw = axis.title.text
+        if raw in labels:
+            axis.title.text = labels[raw]
+        if raw in ("revenue", "gross_profit", "revenue_change", "cogs"):
+            axis.tickprefix = "$"
+    if fig.layout.legend.title.text in labels:
+        fig.layout.legend.title.text = labels[fig.layout.legend.title.text]
     return fig
 
 
@@ -424,18 +440,24 @@ with st.sidebar:
 
     st.divider()
 
-    page = st.radio(
-        "Navigation",
-        [
-            "Overview",
-            "Data Upload",
-            "Financial Analysis",
-            "Performance Drivers",
-            "Anomaly Detection",
-            "AI Copilot",
-            "Financial Reports"
-        ]
-    )
+    pages = {
+        "Overview": ":material/dashboard:",
+        "Data Upload": ":material/upload_file:",
+        "Financial Analysis": ":material/monitoring:",
+        "Performance Drivers": ":material/insights:",
+        "Anomaly Detection": ":material/warning:",
+        "AI Copilot": ":material/auto_awesome:",
+        "Financial Reports": ":material/description:",
+    }
+    if st.session_state.get("workspace_page") not in pages:
+        st.session_state["workspace_page"] = "Overview"
+    st.caption("WORKSPACE")
+    for name, icon in pages.items():
+        if st.button(name, icon=icon, key=f"nav_{name}", width="stretch",
+                     type="primary" if st.session_state["workspace_page"] == name else "secondary"):
+            st.session_state["workspace_page"] = name
+            st.rerun()
+    page = st.session_state["workspace_page"]
 
     st.divider()
 
@@ -464,7 +486,7 @@ with st.sidebar:
         st.rerun()
     if os.getenv("FINSIGHT_LIVE_AI") != "1":
         st.caption("Public demo: local analysis only; no API calls.")
-    st.caption("Version 0.16.2 | Demo")
+    st.caption("Version 0.17.0")
     st.caption("Independent Portfolio Project")
 
 
@@ -474,93 +496,52 @@ with st.sidebar:
 
 if page == "Overview":
 
-    st.title("FinSight AI")
-
-    st.subheader(
-        "Your Intelligent Financial Analyst"
-    )
-
-    st.write(
-        "Transform financial data into actionable "
-        "business insights through tested financial "
-        "calculations and transparent evidence."
-    )
-
-    st.divider()
+    st.caption("WORKSPACE / OVERVIEW")
+    st.title("Financial overview")
+    st.write("Monitor business performance and uncover financial insights.")
 
     if "validated_data" in st.session_state:
-
         df = st.session_state["validated_data"]
-
+        st.caption(f"{len(df):,} validated records · {st.session_state.get('file_name', 'Active dataset')}")
         show_metrics(df)
-
-        st.caption(
-            "Metrics reflect all validated records."
-        )
-
+        st.caption("Metrics reflect all validated records.")
+        monthly = calculate_monthly_performance(df)
+        left, right = st.columns([2, 1])
+        with left:
+            with st.container(border=True):
+                st.subheader("Revenue performance")
+                fig = px.bar(monthly, x="month", y="revenue", labels={"month": "Month", "revenue": "Revenue"})
+                fig.update_traces(marker_color="#426E9B")
+                fig.update_yaxes(tickprefix="$")
+                st.plotly_chart(style_chart(fig), width="stretch")
+        with right:
+            with st.container(border=True):
+                st.subheader("Gross margin")
+                fig = px.line(monthly, x="month", y="gross_margin", markers=True, labels={"month": "Month", "gross_margin": "Margin"})
+                fig.update_traces(line_color="#16967A")
+                fig.update_yaxes(tickformat=".0%")
+                st.plotly_chart(style_chart(fig), width="stretch")
     else:
+        st.info("Upload and validate a dataset to view your financial dashboard.")
 
-        cols = st.columns(4)
-
-        for col, label in zip(
-            cols,
-            [
-                "Total Revenue",
-                "Total COGS",
-                "Gross Profit",
-                "Gross Margin"
-            ]
-        ):
-            col.metric(label, "—")
-
-    st.divider()
-
-    st.subheader("Platform Capabilities")
-
-    left, right = st.columns(2)
-
-    with left:
-
-        st.markdown("### Financial Data Validation")
-
-        st.write(
-            "Automatically map and validate "
-            "financial data from Excel and CSV files."
-        )
-
-        st.markdown("### Performance Intelligence")
-
-        st.write(
-            "Analyze profitability and identify "
-            "contributors to financial changes."
-        )
-
-    with right:
-
-        st.markdown("### Financial Anomaly Detection")
-
-        st.write(
-            "Flag unusual revenue movements "
-            "and gross margin compression."
-        )
-
-        st.markdown("### AI Financial Copilot")
-
-        st.write(
-            "Evidence-backed financial explanations."
-        )
-
-        st.caption("AI Copilot available after data validation.")
-
-    st.divider()
-
-    st.subheader("Calculation Methodology")
-
-    st.write(
-        "Financial calculations are performed "
-        "by a deterministic Python engine, "
-        "independently of the AI model."
-    )
+    st.subheader("Explore your workspace")
+    cards = [
+        ("Financial Analysis", "Explore revenue, costs and profitability."),
+        ("Performance Drivers", "Understand contributors to financial changes."),
+        ("Anomaly Detection", "Review unusual movements and margin compression."),
+        ("AI Copilot", "Ask evidence-backed financial questions."),
+    ]
+    for offset in (0, 2):
+        for col, (name, description) in zip(st.columns(2), cards[offset:offset+2]):
+            with col:
+                with st.container(border=True):
+                    st.markdown(f"**{name}**")
+                    st.write(description)
+                    if st.button(f"Open {name}", key=f"overview_{name}", width="stretch"):
+                        st.session_state["workspace_page"] = name
+                        st.rerun()
+    with st.expander("Calculation methodology"):
+        st.write("Financial calculations are performed by a deterministic Python engine, independently of the AI model.")
 
 
 # ==========================================
@@ -889,7 +870,7 @@ elif page == "Financial Analysis":
         )
 
         fig.update_traces(
-            line_color="#38BDF8"
+            line_color="#426E9B"
         )
 
         st.plotly_chart(
@@ -908,7 +889,7 @@ elif page == "Financial Analysis":
         )
 
         fig.update_traces(
-            line_color="#34D399"
+            line_color="#16967A"
         )
 
         st.plotly_chart(
@@ -926,6 +907,8 @@ elif page == "Financial Analysis":
             y="revenue_growth",
             title="Month-over-Month Revenue Growth"
         )
+
+        fig.update_traces(marker_color=["#94A3B8" if pd.isna(v) else "#16967A" if v >= 0 else "#B91C1C" for v in monthly["revenue_growth"]])
 
         fig.update_yaxes(tickformat=".0%")
 
@@ -1043,7 +1026,7 @@ elif page == "Performance Drivers":
             y=dimension,
             orientation="h",
             title="Revenue Ranking",
-            color_discrete_sequence=["#38BDF8"]
+            color_discrete_sequence=["#426E9B"]
         )
 
         fig.update_yaxes(
@@ -1063,7 +1046,7 @@ elif page == "Performance Drivers":
             y=dimension,
             orientation="h",
             title="Gross Profit Ranking",
-            color_discrete_sequence=["#34D399"]
+            color_discrete_sequence=["#16967A"]
         )
 
         fig.update_yaxes(
@@ -1201,8 +1184,8 @@ elif page == "Performance Drivers":
         y="revenue_change",
         color="direction",
         color_discrete_map={
-            "Increase": "#34D399",
-            "Decrease": "#F87171",
+            "Increase": "#16967A",
+            "Decrease": "#B91C1C",
             "Unchanged": "#94A3B8"
         },
         title="Revenue Change Attribution"
@@ -1424,19 +1407,21 @@ elif page == "Anomaly Detection":
         title="Monthly Revenue Growth and Thresholds"
     )
 
+    fig.update_traces(marker_color=["#94A3B8" if pd.isna(v) else "#16967A" if v >= 0 else "#B91C1C" for v in monthly["revenue_growth"]])
+
     fig.update_yaxes(tickformat=".0%")
 
     fig.add_hline(
         y=0.20,
         line_dash="dash",
-        line_color="#34D399",
+        line_color="#16967A",
         annotation_text="+20% threshold"
     )
 
     fig.add_hline(
         y=-0.20,
         line_dash="dash",
-        line_color="#F87171",
+        line_color="#B91C1C",
         annotation_text="-20% threshold"
     )
 
@@ -1459,25 +1444,26 @@ elif page == "AI Copilot":
     sheet = st.session_state["sheet_name"]
     st.info("Financial calculations are performed locally. Aggregated evidence, source labels and your question are sent to OpenAI when you submit a question. Financial figures are rendered locally; no additional AI verification request is made. Use only data you are authorized to share." if os.getenv("FINSIGHT_LIVE_AI") == "1" else "Public demo: financial calculations and rule-based recommendations run locally. No data is sent to OpenAI and no API key is required.")
 
-    mode = st.radio("Analysis mode", ["Automatic", "Financial summary", "Revenue change investigation", "Multi-dimensional investigation"], horizontal=True)
-    st.caption("Automatic mode selects evidence using your question and the filtered dataset. Explicit monthly comparisons require both months to be present.")
-    dimension = current = previous = None
-    if mode in ("Revenue change investigation", "Multi-dimensional investigation"):
-        dimensions = [x for x in ["product", "country", "segment"] if x in df.columns]
-        months = sorted(df["date"].dt.to_period("M").astype(str).unique())
-        if not dimensions or len(months) < 2:
-            st.warning("This mode requires a mapped business dimension and at least two months.")
-            st.stop()
-        dimension = st.selectbox("Analyze by", dimensions, format_func=str.title) if mode == "Revenue change investigation" else "all"
-        left, right = st.columns(2)
-        previous = left.selectbox("Previous period", months, index=len(months)-2, key="ai_previous")
-        current = right.selectbox("Current period", months, index=len(months)-1, key="ai_current")
-        if current <= previous:
-            st.warning("Choose a current period later than the previous period.")
-            st.stop()
-        suggestions = [f"Explain the revenue change from {previous} to {current} by {dimension}.", "Which contributors offset the decline?", "What should management investigate next?"]
-    else:
-        suggestions = ["Summarize financial performance.", "Identify profitability risks supported by the evidence.", "Which business categories contribute most to revenue?"]
+    with st.expander("Analysis mode and comparison settings", expanded=False):
+        mode = st.radio("Analysis mode", ["Automatic", "Financial summary", "Revenue change investigation", "Multi-dimensional investigation"], horizontal=True)
+        st.caption("Automatic mode selects evidence using your question and the filtered dataset. Explicit monthly comparisons require both months to be present.")
+        dimension = current = previous = None
+        if mode in ("Revenue change investigation", "Multi-dimensional investigation"):
+            dimensions = [x for x in ["product", "country", "segment"] if x in df.columns]
+            months = sorted(df["date"].dt.to_period("M").astype(str).unique())
+            if not dimensions or len(months) < 2:
+                st.warning("This mode requires a mapped business dimension and at least two months.")
+                st.stop()
+            dimension = st.selectbox("Analyze by", dimensions, format_func=str.title) if mode == "Revenue change investigation" else "all"
+            left, right = st.columns(2)
+            previous = left.selectbox("Previous period", months, index=len(months)-2, key="ai_previous")
+            current = right.selectbox("Current period", months, index=len(months)-1, key="ai_current")
+            if current <= previous:
+                st.warning("Choose a current period later than the previous period.")
+                st.stop()
+            suggestions = [f"Explain the revenue change from {previous} to {current} by {dimension}.", "Which contributors offset the decline?", "What should management investigate next?"]
+        else:
+            suggestions = ["Summarize financial performance.", "Identify profitability risks supported by the evidence.", "Which business categories contribute most to revenue?"]
 
     scope = (st.session_state.get("dataset_id"), source, sheet, mode, dimension, previous, current, hashlib.sha256(df.to_csv(index=False).encode()).hexdigest())
     if st.session_state.get("ai_scope") != scope:
@@ -1488,10 +1474,23 @@ elif page == "AI Copilot":
         history.clear()
         st.rerun()
     st.caption("Each question is analyzed independently using the selected evidence; earlier messages are displayed for reference only.")
-    suggestion = st.selectbox("Suggested question", ["Choose a question"] + suggestions)
-    suggested_submit = st.button("Ask suggested question", disabled=suggestion == "Choose a question")
+    suggestion = None
+    if not history:
+        st.subheader("What would you like to analyze?")
+        st.caption("Start with a suggested question or enter your own below.")
+        for i, (col, prompt) in enumerate(zip(st.columns(3), suggestions)):
+            with col:
+                with st.container(border=True):
+                    if st.button(prompt, key=f"suggestion_{i}", width="stretch"):
+                        suggestion = prompt
+    else:
+        with st.expander("Suggested questions"):
+            for i, (col, prompt) in enumerate(zip(st.columns(3), suggestions)):
+                if col.button(prompt, key=f"suggestion_{i}", width="stretch"):
+                    suggestion = prompt
+    suggested_submit = suggestion is not None
 
-    def render_answer(result):
+    def render_answer(result, answer_index):
         if result.get("effective_period"):
             st.caption("Effective reporting months: " + result["effective_period"])
         if result.get("route"):
@@ -1501,31 +1500,46 @@ elif page == "AI Copilot":
             if route.get("previous_month") and route.get("current_month"):
                 st.write(f"Dimension: {route['dimension']} | {route['previous_month']} to {route['current_month']}")
         if result.get("investigation"):
-            with st.expander("Deterministic reconciliation", expanded=True):
+            with st.expander("Deterministic reconciliation", expanded=False):
                 inv = result["investigation"]
                 st.caption(inv["note"])
                 st.dataframe([{"Dimension": d, "Net revenue change": round(b["net_change"], 2), "Reconciliation difference": round(b["reconciliation_difference"], 2)} for d,b in inv["dimensions"].items()])
-        if result.get("active_skills"):
-            st.caption("Active financial skills: " + ", ".join(result["active_skills"]))
         show_executive_analysis(result)
-        show_numerical_verification(result)
         verification = result["verification"]
-        if verification["passed"]:
-            st.success("All cited evidence IDs exist in the registry.")
-        else:
+        check = result.get("numerical_verification", {})
+        if not verification["passed"]:
             st.warning("Citation ID verification did not pass. Review this answer before relying on it.")
-        st.caption("ID verification does not establish that every claim is supported or numerically correct.")
-        cols = st.columns(3)
-        cols[0].metric("Valid IDs", len(verification["valid_citations"]))
-        cols[1].metric("Invalid IDs", len(verification["invalid_citations"]))
-        cols[2].metric("Reported tokens", result["total_tokens"])
-        st.caption(f"Model: {result['model']} | Token count for final request only")
-        with st.expander("Citation verification details"):
-            st.json(verification)
-        for record in result["cited_evidence"]:
-            if not record:
-                continue
-            with st.expander(f"[{record['evidence_id']}] {record['title']}"):
+        if check.get("mode") == "deterministic":
+            if not check.get("controlled_actions") and (not check.get("commentary_accepted") or check.get("commentary_diagnostic")):
+                st.warning("Some AI commentary was withheld or rejected. Review the verification details.")
+        elif check.get("extraction_status") != "completed" or any(check.get(k) for k in ("failed", "unverified", "coverage_warnings", "errors")):
+            st.warning("Numerical verification is incomplete or requires review.")
+        st.caption("Citation ID checks do not establish factual accuracy; financial values are not independently audited.")
+        records = [record for record in result["cited_evidence"] if record]
+        with st.expander(f"Evidence & verification details ({len(records)} records)", expanded=False):
+            if result.get("active_skills"):
+                st.caption("Active financial skills: " + ", ".join(result["active_skills"]))
+            show_numerical_verification(result, compact=True)
+            if verification["passed"]:
+                st.success("All cited evidence IDs exist in the registry.")
+            cols = st.columns(3)
+            cols[0].metric("Valid IDs", len(verification["valid_citations"]))
+            cols[1].metric("Invalid IDs", len(verification["invalid_citations"]))
+            cols[2].metric("Reported tokens", result["total_tokens"])
+            st.caption(f"Model: {result['model']} | Token count for final request only")
+            options = ["Citation verification details"] + [
+                f"[{record['evidence_id']}] {record['title']}" for record in records
+            ]
+            choice = st.selectbox(
+                "Select evidence or verification details",
+                range(len(options)),
+                format_func=lambda index: options[index],
+                key=f"copilot_evidence_{answer_index}",
+            )
+            if choice == 0:
+                st.json(verification)
+            else:
+                record = records[choice - 1]
                 st.write("Methodology:", record.get("methodology"))
                 st.write("Calculated values:")
                 st.write(record.get("values"))
@@ -1534,11 +1548,11 @@ elif page == "AI Copilot":
                 st.write("Full evidence record:")
                 st.write(record)
 
-    for item in history:
+    for answer_index, item in enumerate(history):
         with st.chat_message("user"):
             st.write(item["question"])
         with st.chat_message("assistant"):
-            render_answer(item)
+            render_answer(item, answer_index)
 
     typed = st.chat_input("Ask a question about your selected financial data")
     question = suggestion if suggested_submit else typed
@@ -1583,7 +1597,7 @@ elif page == "AI Copilot":
                         result = analyze_financial_data(question, df, source, sheet, route=route)
                 result["route"] = route
                 history.append(result)
-                render_answer(result)
+                render_answer(result, len(history) - 1)
             except Exception as error:
                 status = getattr(error, "status_code", None)
                 if status == 429:
