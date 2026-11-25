@@ -1547,6 +1547,9 @@ elif page == "AI Copilot":
                 st.markdown("**" + commentary["source"] + "**")
                 st.text(commentary["text"])
                 st.caption(commentary["status"])
+                if commentary.get("diagnostic"):
+                    with st.expander("Validation details"):
+                        st.caption(commentary["diagnostic"])
                 if commentary["tokens"] is not None:
                     st.caption(f"Reported API tokens: {commentary['tokens']}")
             else:
