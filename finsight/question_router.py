@@ -10,7 +10,7 @@ def route_question(question, available_months):
     available = {str(m)[:7] for m in available_months}
     dimensions = [d for d, pattern in [('product', r'\bproducts?\b'), ('country', r'\b(countries|country|geographic)\b'), ('segment', r'\bsegments?\b')] if re.search(pattern,q)]
     investigation = bool(re.search(r'\b(declin\w*|drop\w*|fell|fall|increas\w*|growth|chang\w*|compar\w*|drivers?|drove|contributors?|attribution)\b',q) and re.search(r'\b(revenue|sales)\b',q))
-    years_requested = set(re.findall(r'\b(?:19|20)\d{2}\b', q))
+    years_requested = set(re.findall(r'\b(?:fy\s*)?((?:19|20)\d{2})\b', q))
     if years_requested - {m[:4] for m in available}:
         return {'mode':'clarify','reason':'Requested year is not available in selected data.'}
     from finsight.request_policy import missing_metrics

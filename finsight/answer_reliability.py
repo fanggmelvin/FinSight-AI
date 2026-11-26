@@ -23,7 +23,8 @@ def recommendation_count(question):
     return None
 
 def direct_answer(records, route, question=""):
-    if not route or route.get('mode')!='ranking':return ''
+    if not route or route.get('mode') != 'ranking':
+        return summary_answer(records, question) if not route or route.get('mode') == 'summary' else ''
     metric=route['metric']; dim=route['dimension']
     rows=[r for r in records if r['category']==dim.title()+' Performance' and isinstance(r['values'].get(metric),(int,float)) and math.isfinite(r['values'][metric])]
     rows.sort(key=lambda r:r['values'][metric],reverse=not route.get('ascending',False))
@@ -56,6 +57,34 @@ def direct_answer(records, route, question=""):
             r = named[0]
             correction = f'\n\nThe calculated {label} ranking does not support the premise about {name(r)}: {fmt(metric,r["values"][metric])} [{r["evidence_id"]}].'
     return f'**{dim.title()} ranking by {label} ({direction})**\n\n'+'\n'.join(row(r) for r in rows)+ ('\n\nHistorical gross profit is not a forecast of incremental returns; test demand, capacity and marginal costs before scaling.' if metric=='gross_profit' else '') + distinction + correction
+
+
+def summary_answer(records, question):
+    from finsight.request_policy import strategic
+    if strategic(question) or not re.search(r"\b(?:what|how much|show|give|total|calculate)\b", question, re.I):
+        return ""
+    definitions = (
+        (r"\bbudget\b", "Revenue Budget Variance", "variance", "Revenue variance vs. budget"),
+        (r"\b(?:revenue|sales)\b", "Total Revenue", "revenue", "Revenue"),
+        (r"\b(?:cogs|cost of (?:goods sold|sales))\b", "Total Cost of Goods Sold", "cogs", "Cost of goods sold"),
+        (r"\bgross profit\b", "Gross Profit", "gross_profit", "Gross profit"),
+        (r"\bgross margin\b", "Gross Margin", "gross_margin", "Gross margin"),
+    )
+    available = {record["title"]: record for record in records}
+    lines = []
+    for pattern, title, field, label in definitions:
+        if not re.search(pattern, question, re.I):
+            continue
+        record = available.get(title)
+        if record is None:
+            if field == "variance":
+                lines.append("This dataset has no mapped revenue budget to compare with actuals.")
+            continue
+        value = record["values"].get(field)
+        if isinstance(value, (int, float)) and math.isfinite(value):
+            shown = f"{value:.2%}" if field == "gross_margin" else f"{value:,.2f}"
+            lines.append(f"**{label}: {shown}** [{record['evidence_id']}]")
+    return "\n\n".join(lines)
 
 def complete_plan(synthesis, findings, count):
     if count is None:return synthesis, None

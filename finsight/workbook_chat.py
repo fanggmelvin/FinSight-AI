@@ -9,6 +9,7 @@ from statistics import mean
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter, range_boundaries
 from finsight.ai_config import dataset_ai_available
+from finsight.grounded_chat import Interpretation
 
 
 @dataclass
@@ -30,6 +31,8 @@ class Reply:
     filters: dict = field(default_factory=dict)
     sources: tuple[tuple[str, str], ...] = ()
     lookup: LookupDetails | None = None
+    interpretation: Interpretation | None = None
+    outlook: bool = False
 
 
 CELL = r"\$?[A-Z]{1,3}\$?[1-9]\d{0,6}"
@@ -211,8 +214,16 @@ def render_workbook_reply(st, source, reply, key):
             st.text(lookup.source_value)
             if lookup.period_note:
                 st.caption(lookup.period_note)
+        elif getattr(reply, "outlook", False):
+            st.markdown(reply.text)
         else:
             st.text(reply.text)
+        interpretation = getattr(reply, "interpretation", None)
+        if interpretation and interpretation.text:
+            st.markdown("**AI interpretation**")
+            st.text(interpretation.text)
+        if interpretation and interpretation.status:
+            st.caption(interpretation.status)
         sources = tuple(dict.fromkeys(getattr(reply, "sources", ())))
         if not sources and reply.reference:
             sources = ((reply.sheet, reply.reference),)
@@ -268,7 +279,7 @@ def enrich_annual_metadata(source, sheet, frame):
     return frame
 
 
-def render_chat(st, source, question, prompt_slot, *, annual=None, annual_sheet=None, dataset_key=""):
+def render_chat(st, source, question, prompt_slot, *, annual=None, annual_sheet=None, monthly=None, dataset_key=""):
     from finsight.copilot_ui import copilot_context, copilot_toolbar
     context, settings, reset = copilot_toolbar(st, "workbook_new_chat")
     sheet = settings.selectbox("Worksheet", source["sheets"], index=source["sheets"].index(source["selected"]),
@@ -307,16 +318,31 @@ def render_chat(st, source, question, prompt_slot, *, annual=None, annual_sheet=
             if question:
                 prompt_slot.empty()
     if question:
+        from finsight.financial_outlook import annual_outlook, is_outlook, monthly_outlook
+        from finsight.grounded_chat import interpret_evidence
         prior = history[-1][1] if history else None
         reply = None
         follows_other_sheet = prior and prior.sheet != sheet and FOLLOWUP.search(question)
-        if annual is not None and sheet == annual_sheet and not follows_other_sheet and not any(
-                name != sheet for name, _, _ in mentioned_sheets(source["sheets"], question)):
+        explicit_other_sheet = any(name != sheet for name, _, _ in mentioned_sheets(source["sheets"], question))
+        use_annual = annual is not None and sheet == annual_sheet and not follows_other_sheet and not explicit_other_sheet
+        if is_outlook(question, workbook=True):
+            try:
+                if use_annual:
+                    text = annual_outlook(annual, question)
+                elif monthly is not None and sheet == source["selected"] and not explicit_other_sheet:
+                    text = monthly_outlook(monthly, question)
+                else:
+                    raise ValueError("A new financial outlook requires an annual statement with actuals or a mapped date, revenue and cost table for this worksheet.")
+            except ValueError as error:
+                text = str(error)
+            interpretation = interpret_evidence(question, {"E0": text}, [q for q, _ in history[-3:]], enabled=live)
+            reply = Reply(text, sheet, interpretation=interpretation, outlook=True)
+        elif use_annual:
             from finsight.annual_chat import annual_reply
             reply = annual_reply(enrich_annual_metadata(source, sheet, annual), sheet, question, prior)
         if reply is None:
             reply = answer(source["bytes"], question, sheet, prior)
-        if live and getattr(reply, "lookup", None) is None:
+        if live and not reply.outlook:
             from finsight.workbook_interpretation import interpret
             reply = interpret(source, reply.sheet, question, history, reply)
         history.append((question, reply))

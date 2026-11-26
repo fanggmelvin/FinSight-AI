@@ -23,8 +23,8 @@ def strategic(question):
     from finsight.answer_reliability import recommendation_count
     return recommendation_count(question) is not None or bool(re.search(r'\b(?:should|recommend\w*|prioriti\w*|strategy|strategic|cfo|why|how can|how should|interpret\w*|explain|dependence|diversif\w*)\b',question,re.I))
 
-def allow_ai(question, route, deeper=False):
-    return deeper or strategic(question) or route.get('mode') in ('revenue_investigation','multi_investigation')
+def allow_ai(question, route):
+    return bool(question.strip()) and route.get("mode") != "clarify"
 
 def cached_analysis(state, key, enabled, run):
     # State belongs to a single Streamlit session; never shared or persisted.
@@ -42,7 +42,8 @@ def cached_analysis(state, key, enabled, run):
     result=run(True)
     check=result.get('numerical_verification',{})
     commentary=result.get('scenario_commentary',{})
-    valid=(check.get('generated_synthesis') and not check.get('commentary_diagnostic') and result.get('verification',{}).get('passed')) or (commentary.get('status','').startswith('AI response accepted;') and not commentary.get('diagnostic'))
+    interpretation = result.get("interpretation")
+    valid=(check.get('generated_synthesis') and not check.get('commentary_diagnostic') and result.get('verification',{}).get('passed')) or (commentary.get('status','').startswith('AI response accepted;') and not commentary.get('diagnostic')) or bool(interpretation and interpretation.text)
     if valid:
         if len(cache)>=32:cache.pop(next(iter(cache)))
         cache[key]=(now,copy.deepcopy(result))

@@ -95,6 +95,38 @@ def test_planning_follow_up_returns_one_specific_priority_without_ai(monkeypatch
     assert app.session_state["ai_history"][-1]["numerical_verification"]["generated_synthesis"]
 
 
+def test_live_copilot_answers_lookups_and_outlooks(monkeypatch):
+    monkeypatch.setenv("FINSIGHT_LIVE_AI", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    requests = []
+
+    def create(**request):
+        requests.append(request)
+        if "E0" in request["input"]:
+            return SimpleNamespace(output_text='[{"text":"Treat the downside as a planning sensitivity.","refs":["E0"]}]')
+        return SimpleNamespace(output_text='{"items":[]}')
+
+    monkeypatch.setattr("finsight.ai_engine.get_client", lambda: SimpleNamespace(responses=SimpleNamespace(create=create)))
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
+    app.button(key="nav_AI Copilot").click().run()
+    app.chat_input[0].set_value("What was revenue in November 2014?").run()
+    assert not app.exception
+    answer = app.session_state["ai_history"][-1]
+    assert "5,384,214.20" in answer["direct_answer"]
+    assert answer["effective_period"] == "2014-11"
+    assert len(requests) == 1
+
+    app.chat_input[0].set_value("predict next years growth and numbers").run()
+    assert not app.exception
+    outlook = app.session_state["ai_history"][-1]
+    assert outlook["route"]["mode"] == "outlook"
+    assert "2015 revenue and gross-profit outlook" in outlook["focused_answer"]
+    assert "92,311,094.75" in outlook["focused_answer"]
+    assert "96,926,649.49" in outlook["focused_answer"]
+    assert "planning sensitivity" in outlook["interpretation"].text
+    assert len(requests) == 2
+
+
 def test_excel_upload_replacement_and_recovery(monkeypatch):
     monkeypatch.setenv("FINSIGHT_LIVE_AI", "0")
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
@@ -246,7 +278,7 @@ def test_workbook_ai_requires_deployment_opt_in_and_user_consent(monkeypatch):
     assert len(calls) == 1 and not app.exception
     answer = app.chat_message[-1].text[0].value
     assert answer.startswith("Owner: Casey (CSV!B2)")
-    assert "The worksheet identifies the project lead." in answer
+    assert "The worksheet identifies the project lead." in app.chat_message[-1].text[1].value
 
     def unavailable():
         raise RuntimeError("simulated provider outage")
@@ -255,3 +287,4 @@ def test_workbook_ai_requires_deployment_opt_in_and_user_consent(monkeypatch):
     app.chat_input[0].set_value("Who is the owner of Apollo?").run()
     assert not app.exception
     assert app.chat_message[-1].text[0].value == "Owner: Casey (CSV!B2)"
+    assert "OpenAI could not be reached" in app.chat_message[-1].caption[0].value

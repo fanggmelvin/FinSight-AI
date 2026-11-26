@@ -602,8 +602,10 @@ with st.container(key=workspace_key(page)):
     if copilot_workbook:
         from finsight.workbook_chat import render_chat
         same_annual = active_annual and active_annual["id"] == copilot_workbook["id"]
+        same_table = st.session_state.get("dataset_id") == f"{copilot_workbook['id']}:{copilot_workbook['selected']}"
         render_chat(st, copilot_workbook, typed, prompt_slot, annual=st.session_state.get("annual_data") if same_annual else None,
                     annual_sheet=active_annual["selected"] if same_annual else None,
+                    monthly=st.session_state.get("validated_data") if same_table else None,
                     dataset_key=st.session_state.get("dataset_id", "") if same_annual else "")
     elif "annual_data" in st.session_state and page != "Data Upload":
         from finsight.annual_analytics import render_annual
@@ -1267,15 +1269,6 @@ with st.container(key=workspace_key(page)):
                     except Exception:
                         st.caption("Quota status unavailable; request guard remains active.")
             from finsight.request_policy import allow_ai, cached_analysis
-            st.markdown("**AI interpretation**")
-            with st.container():
-                deeper_ai = st.checkbox("Include AI interpretation for basic financial questions", value=False, disabled=not data_ai) and data_ai
-                scenario_ai = st.checkbox(
-                    "Include AI strategic interpretation for scenarios",
-                    value=bool(scenario_demo and live_scenario_ai),
-                    key=f"scenario_ai_{scenario_demo}_{st.session_state.get('dataset_id')}_{live_scenario_ai}",
-                    disabled=not data_ai,
-                ) and data_ai
             st.caption("Follow-up questions reuse context. Changing filters or starting a new chat resets context.")
         period = compact_period(', '.join(sorted(df['date'].dt.to_period('M').astype(str).unique())))
         processing = "OpenAI available for analysis" if data_ai else "Local analysis"
@@ -1295,6 +1288,19 @@ with st.container(key=workspace_key(page)):
                 prompt_slot.empty()
 
         def render_answer(result, answer_index):
+            if "focused_answer" in result:
+                st.markdown(result["focused_answer"])
+                interpretation = result.get("interpretation")
+                if interpretation and interpretation.text:
+                    st.markdown("**AI interpretation**")
+                    st.text(interpretation.text.replace(" [E0]", ""))
+                if result.get("session_limited"):
+                    st.caption("Session AI limit reached. Showing the calculated answer.")
+                elif interpretation and interpretation.status:
+                    st.caption(interpretation.status)
+                if result.get("forecast_source"):
+                    st.caption(result["forecast_source"])
+                return
             if result.get("cache_hit"):
                 st.caption("Reused validated session response; no new AI request.")
             if result.get("session_limited"):
@@ -1457,6 +1463,34 @@ with st.container(key=workspace_key(page)):
                         st.warning(warning)
                         st.info("No AI request was sent.")
                         st.stop()
+                    from finsight.financial_outlook import is_outlook, monthly_outlook
+                    from finsight.grounded_chat import interpret_evidence
+                    from finsight.request_policy import closure_decision, named_analysis
+
+                    def focused_reply(text, label):
+                        with st.spinner("Analyzing the available evidence..."):
+                            result = cached_analysis(
+                                st.session_state, (scope, question, label), data_ai,
+                                lambda enabled: {
+                                    "focused_answer": text,
+                                    "interpretation": interpret_evidence(
+                                        question, {"E0": text},
+                                        [entry["question"] for entry in history[-3:]], enabled=enabled,
+                                    ),
+                                },
+                            )
+                        result.update(question=original_question, effective_question=question, route={"mode": label})
+                        if label == "outlook":
+                            result["forecast_source"] = f"Source: {source} | {sheet} · {period}"
+                        history.append(result)
+                        st.rerun()
+
+                    if is_outlook(question):
+                        try:
+                            projection = monthly_outlook(df, question)
+                        except ValueError as error:
+                            projection = str(error)
+                        focused_reply(projection, "outlook")
                     from finsight.scenario import is_scenario, run_scenario
                     from finsight.scenario_presentation import resolve_scenario_followup, sensitivity
                     if mode == "Automatic":
@@ -1466,10 +1500,7 @@ with st.container(key=workspace_key(page)):
                             st.info("No AI request was sent.")
                             st.stop()
                     if mode == "Automatic" and re.search(r"\bshould\b.*\bdiscontinue\b", question, re.I):
-                        from finsight.request_policy import closure_decision
-                        st.markdown(closure_decision(question, df))
-                        st.info("No AI request was sent.")
-                        st.stop()
+                        focused_reply(closure_decision(question, df), "segment review")
                     if mode == "Automatic" and is_scenario(question):
                         try:
                             scenario = run_scenario(question, df)
@@ -1480,7 +1511,7 @@ with st.container(key=workspace_key(page)):
                         result = {"question": original_question, "effective_question": question, "scenario": scenario, "sensitivity": sensitivity(question, df), "route": {"mode": "scenario"}}
                         from finsight.scenario_commentary import interpret_scenario
                         with st.spinner("Preparing scenario interpretation..."):
-                            result = cached_analysis(st.session_state, (scope, question, "scenario"), scenario_ai, lambda enabled: dict(result, scenario_commentary=interpret_scenario(question, scenario, enabled=enabled)))
+                            result = cached_analysis(st.session_state, (scope, question, "scenario"), data_ai, lambda enabled: dict(result, scenario_commentary=interpret_scenario(question, scenario, enabled=enabled)))
                         history.append(result)
                         st.rerun()
                     if mode == "Automatic":
@@ -1511,12 +1542,9 @@ with st.container(key=workspace_key(page)):
                         st.info("Please rephrase your question or choose manual analysis. No AI request was sent.")
                         st.stop()
                     if mode == "Automatic" and route["mode"] in ("summary", "ranking"):
-                        from finsight.request_policy import named_analysis
                         direct = named_analysis(question, df)
                         if direct is not None:
-                            st.markdown(direct)
-                            st.info("No AI request was sent.")
-                            st.stop()
+                            focused_reply(direct, "focused analysis")
                     if route["mode"] == "revenue_investigation" and route["dimension"] not in df.columns:
                         st.warning("The requested business dimension is not mapped in this dataset. No AI request was sent.")
                         st.stop()
@@ -1528,10 +1556,10 @@ with st.container(key=workspace_key(page)):
                             return investigate_revenue_change(question, df, route["dimension"], route["current_month"], route["previous_month"], source, sheet, enabled=enabled)
                         else:
                             return analyze_financial_data(question, df, source, sheet, route=route, enabled=enabled)
-                    ai_requested = allow_ai(question, route, deeper_ai)
+                    route["recent_questions"] = [entry["question"][:400] for entry in history[-3:]]
                     with st.spinner("Calculating evidence and generating analysis..."):
-                        result = cached_analysis(st.session_state, (scope, question, str(route)), data_ai and ai_requested, run_analysis)
-                    if ai_requested and not data_ai:
+                        result = cached_analysis(st.session_state, (scope, question, str(route)), data_ai and allow_ai(question, route), run_analysis)
+                    if not data_ai:
                         result["numerical_verification"]["commentary_diagnostic"] = (
                             "Local recommendation · Live AI is unavailable in this deployment." if not live_ai_available()
                             else "Local recommendation · AI access for this dataset is disabled." if not live_scenario_ai

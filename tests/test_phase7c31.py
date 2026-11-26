@@ -15,7 +15,7 @@ def test_security():
 def test_intent():
     assert not is_scenario('Should we immediately discontinue Enterprise?')
     assert is_scenario('What if we discontinue Enterprise?')
-    assert not allow_ai('Which products generate the most gross profit?',{'mode':'ranking'})
+    assert allow_ai('Which products generate the most gross profit?',{'mode':'ranking'})
     assert allow_ai('Which products should we prioritize?',{'mode':'ranking'})
 
 def test_cache_and_limit():
