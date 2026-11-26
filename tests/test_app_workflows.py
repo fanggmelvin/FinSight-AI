@@ -63,6 +63,38 @@ def test_demo_workspace_workflows(monkeypatch):
     }
 
 
+def test_planning_follow_up_returns_one_specific_priority_without_ai(monkeypatch):
+    monkeypatch.setenv("FINSIGHT_LIVE_AI", "0")
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()
+    app.button(key="nav_AI Copilot").click().run()
+    app.chat_input[0].set_value("give me some areas of improvement going int othe next year").run()
+    assert not app.exception
+    overview = app.session_state["ai_history"][-1]
+    assert overview["commentary"].count("**Proposed action:**") == 3
+    assert "Live AI is unavailable" in overview["numerical_verification"]["commentary_diagnostic"]
+    app.chat_input[0].set_value("if you were me target 1 specific area for improvement").run()
+    assert not app.exception
+    answer = app.session_state["ai_history"][-1]
+    assert answer["commentary"].count("**Proposed action:**") == 1
+    assert "Enterprise" in answer["commentary"] and "-3.13%" in answer["commentary"]
+    assert "Rank Enterprise transactions by gross profit." in answer["commentary"]
+    assert "Segment concentration" not in answer["commentary"]
+
+    calls = []
+
+    def create(**request):
+        calls.append(request)
+        return SimpleNamespace(output_text='{"choices":["A0_0"]}')
+
+    monkeypatch.setattr("finsight.ai_engine.get_client", lambda: SimpleNamespace(responses=SimpleNamespace(create=create)))
+    monkeypatch.setenv("FINSIGHT_LIVE_AI", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-only")
+    app.chat_input[0].set_value("if you were me target 1 specific area for improvement").run()
+    assert not app.exception
+    assert len(calls) == 1 and "Select exactly 1 action IDs" in calls[0]["instructions"]
+    assert app.session_state["ai_history"][-1]["numerical_verification"]["generated_synthesis"]
+
+
 def test_excel_upload_replacement_and_recovery(monkeypatch):
     monkeypatch.setenv("FINSIGHT_LIVE_AI", "0")
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / "app.py", default_timeout=30).run()

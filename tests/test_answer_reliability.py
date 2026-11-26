@@ -18,3 +18,16 @@ def test_count_fallback():
     assert requested_count('What are the three most important strategic changes?')==3
     plan,diagnostic=complete_plan('one',themes,3)
     assert len(plan.split('\n\n'))==3 and diagnostic
+
+
+def test_planning_and_single_priority_follow_up_are_ai_eligible():
+    from finsight.answer_reliability import recommendation_count
+    from finsight.request_policy import allow_ai
+
+    planning = "give me some areas of improvement going into the next year"
+    follow_up = "if you were me target 1 specific area for improvement"
+    assert recommendation_count(planning) == 3
+    assert requested_count(follow_up) == 1
+    assert allow_ai(planning, {"mode": "summary"})
+    assert allow_ai(follow_up, {"mode": "summary"})
+    assert recommendation_count("Compare revenue for 1 period.") is None

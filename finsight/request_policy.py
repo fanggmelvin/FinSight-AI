@@ -20,7 +20,8 @@ def missing_metrics(question):
     return 'This dataset does not establish the requested metric; gross profit is not net income. ' + ' '.join(messages)
 
 def strategic(question):
-    return bool(re.search(r'\b(?:should|recommend\w*|prioriti\w*|strategy|strategic|cfo|why|how can|how should|interpret\w*|explain|dependence|diversif\w*)\b',question,re.I))
+    from finsight.answer_reliability import recommendation_count
+    return recommendation_count(question) is not None or bool(re.search(r'\b(?:should|recommend\w*|prioriti\w*|strategy|strategic|cfo|why|how can|how should|interpret\w*|explain|dependence|diversif\w*)\b',question,re.I))
 
 def allow_ai(question, route, deeper=False):
     return deeper or strategic(question) or route.get('mode') in ('revenue_investigation','multi_investigation')

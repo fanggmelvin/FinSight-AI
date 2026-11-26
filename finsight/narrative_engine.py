@@ -36,6 +36,7 @@ def theme_for(text, skill):
     return 'other'
 
 def build_themes(records, skill, direction=None):
+    records_by_id = {record['evidence_id']: record for record in records}
     groups=OrderedDict()
     for f in findings_for(records,skill,direction):
         key=theme_for(f['text'],skill)
@@ -45,6 +46,15 @@ def build_themes(records, skill, direction=None):
         title,implication,actions=PLANS[key]
         if key=='segment_margin' and not any(re.search(r'\(-\d',f['text']) for f in items):
             implication='Relative margin rankings help prioritize review but do not establish losses or underperformance.'
+        elif key == 'segment_margin':
+            source_ids = re.findall(r'\[(E\d+)\]', items[0]['text'])
+            if source_ids and (record := records_by_id.get(source_ids[0])):
+                segment = record['title'].partition(':')[2].strip()
+                if segment:
+                    actions = [
+                        f"Rank {segment} transactions by gross profit. Review realized prices, discounts and unit costs on the largest losses, then track the segment’s gross margin against break-even.",
+                        f"Build a gross-profit bridge for {segment} to test how realized pricing, sales mix and unit costs contributed to the loss.",
+                    ]
         # Sort anomaly observations by magnitude within severity, without comparing unlike units.
         if key in ('decline','compression','increase'):
             def order(f):

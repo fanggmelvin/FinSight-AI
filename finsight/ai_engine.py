@@ -202,8 +202,10 @@ def analyze_question(
     skill_context = load_skills(active_skills)
     from finsight.narrative_engine import build_themes, render_themes
     from finsight.deterministic_report import render_report
+    from finsight.answer_reliability import complete_plan, direct_answer, recommendation_count
     selected_model = model or MODEL
     findings = build_themes(registry.records, active_skills[0], (route or {}).get('direction'))
+    requested_actions = recommendation_count(question)
     usage = None
     raw = None
     diagnostic = None
@@ -219,8 +221,7 @@ def analyze_question(
             schema = {"type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{"priority":{"type":"string","enum":["High","Medium","Low"]},"observation":{"type":"string"},"action":{"type":"string"},"evidence_ids":{"type":"array","items":{"type":"string","enum":[r['evidence_id'] for r in registry.records]}}},"required":["priority","observation","action","evidence_ids"],"additionalProperties":False}}},"required":["items"],"additionalProperties":False}
             from finsight.commentary_grounding import ranking_rows
             ranked = ranking_rows(registry.records, route)
-            from finsight.answer_reliability import requested_count
-            strategic_count = requested_count(question) if not ranked else None
+            strategic_count = requested_actions if not ranked else None
             action_only = strategic_count is not None and 1 <= strategic_count <= 5
             if action_only:
                 from finsight.strategic_choices import select_plan
@@ -249,9 +250,8 @@ def analyze_question(
             diagnostic=(str(exc) or 'Live AI usage limit reached') + '; local recommendations used.'
         except Exception:
             diagnostic='AI recommendation service unavailable; local recommendations used.'
-    from finsight.answer_reliability import direct_answer, requested_count, complete_plan
     direct = direct_answer(registry.records, route, question)
-    plan, plan_diagnostic = complete_plan(synthesis, findings, requested_count(question))
+    plan, plan_diagnostic = complete_plan(synthesis, findings, requested_actions)
     local_plan = bool(plan_diagnostic and plan != synthesis)
     if plan_diagnostic:
         from finsight.copilot_ui import plan_status
@@ -259,6 +259,7 @@ def analyze_question(
     if local_plan:
         synthesis = ''
     commentary, selected_count, invalid = render_themes(findings, None)
+    supporting_findings = commentary
     if local_plan:
         commentary = plan
     diagnostic = diagnostic or invalid
@@ -270,6 +271,7 @@ def analyze_question(
     return {"question":question,"answer":answer,"model":selected_model,"active_skills":list(active_skills),
         "verification":verify_citations(answer,registry),"numerical_verification":{"mode":"deterministic","rendered_fields":count,"commentary_accepted":bool(synthesis),"commentary_diagnostic":diagnostic,"tokens":0,"controlled_actions":True,"generated_synthesis":bool(synthesis),"selected_actions":selected_count,"total_findings":len(findings)},
         "cited_evidence":get_cited_evidence(answer,registry),"commentary":commentary,"direct_answer":direct,"local_plan":local_plan,
+        "supporting_findings":supporting_findings,
         **{k:(getattr(usage,k,0) or 0) if usage else 0 for k in ('input_tokens','output_tokens','total_tokens')}}
 
 

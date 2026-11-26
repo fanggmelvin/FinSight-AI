@@ -214,9 +214,14 @@ def show_executive_analysis(result, *, compact=False, source_view=None, supporti
             st.subheader('Calculated management insights')
             st.markdown(findings)
             st.caption('Rankings are calculated from available evidence; suggested reviews are not established causes.')
-        if not executive and not result.get("local_plan") and not local_primary:
+        if not executive and not local_primary:
+            supporting = (result.get("supporting_findings") if result.get("local_plan")
+                          else result["commentary"].split('\n\n**Calculated supporting findings**\n\n', 1)[-1])
+        else:
+            supporting = None
+        if supporting:
             st.subheader('Calculated findings and management recommendations')
-            st.markdown(result['commentary'].split('\n\n**Calculated supporting findings**\n\n', 1)[-1] or 'Commentary unavailable; review the calculated evidence.')
+            st.markdown(supporting)
             st.caption('Financial findings are calculated locally. Supporting findings and fallback actions are rule-based. Actions are not established causes or guaranteed outcomes.')
     with st.expander('Complete calculated financial evidence'):
         facts = build_facts(SimpleNamespace(records=records))
@@ -1523,8 +1528,15 @@ with st.container(key=workspace_key(page)):
                             return investigate_revenue_change(question, df, route["dimension"], route["current_month"], route["previous_month"], source, sheet, enabled=enabled)
                         else:
                             return analyze_financial_data(question, df, source, sheet, route=route, enabled=enabled)
+                    ai_requested = allow_ai(question, route, deeper_ai)
                     with st.spinner("Calculating evidence and generating analysis..."):
-                        result = cached_analysis(st.session_state, (scope, question, str(route)), data_ai and allow_ai(question, route, deeper_ai), run_analysis)
+                        result = cached_analysis(st.session_state, (scope, question, str(route)), data_ai and ai_requested, run_analysis)
+                    if ai_requested and not data_ai:
+                        result["numerical_verification"]["commentary_diagnostic"] = (
+                            "Local recommendation · Live AI is unavailable in this deployment." if not live_ai_available()
+                            else "Local recommendation · AI access for this dataset is disabled." if not live_scenario_ai
+                            else "Local recommendation · This dataset has not been shared with AI."
+                        )
                     result["route"] = route
                     result["effective_question"] = question
                     result["question"] = original_question

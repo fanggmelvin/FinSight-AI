@@ -3,9 +3,24 @@ import re
 import math
 
 def requested_count(question):
-    m=re.search(r'\b(\d+|one|two|three|four|five)\s+(?:most important\s+|strategic\s+|key\s+)*(?:recommendations|changes|actions|priorities|steps)\b',question.lower())
-    if not m:return None
+    q = question.lower()
+    m = re.search(
+        r'\b(\d+|one|two|three|four|five)\s+(?:(?:most important|most impactful|strategic|key|specific|concrete)\s+)*'
+        r'(?:recommendations?|changes?|actions?|priorit(?:y|ies)|steps?|areas?\s+(?:for|of)\s+improvement)\b', q)
+    if not m:
+        if re.search(r'\b(?:pick|choose|target|focus on)\s+(?:just\s+)?(?:one|1)(?:\s+of\s+(?:these|those))?[?!.\s]*$', q):
+            return 1
+        return None
     return {'one':1,'two':2,'three':3,'four':4,'five':5}.get(m[1],int(m[1]) if m[1].isdigit() else 0)
+
+
+def recommendation_count(question):
+    count = requested_count(question)
+    if count is not None:
+        return count
+    if re.search(r'\b(?:areas? (?:for|of) improvement|improvement priorities)\b', question, re.I):
+        return 3
+    return None
 
 def direct_answer(records, route, question=""):
     if not route or route.get('mode')!='ranking':return ''
