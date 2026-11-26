@@ -4,10 +4,9 @@ import re
 import json
 from finsight.verification_engine import verify_claims
 
-from pathlib import Path
-from dotenv import load_dotenv
 from openai import OpenAI
 from finsight.api_guard import GuardedClient, QuotaExceeded
+from finsight.ai_config import live_ai_available, load_local_config
 
 from finsight.evidence_engine import (
     EvidenceRegistry,
@@ -15,9 +14,7 @@ from finsight.evidence_engine import (
     build_driver_evidence
 )
 
-load_dotenv(
-    Path(__file__).resolve().parent.parent / ".env"
-)
+load_local_config()
 
 MODEL = os.getenv(
     "OPENAI_MODEL",
@@ -81,17 +78,10 @@ Explain missing information or uncertainty.
 # ==========================================
 
 def get_client():
-
-    api_key = os.getenv("OPENAI_API_KEY")
-
-    if not api_key:
-
-        raise RuntimeError(
-            "OPENAI_API_KEY is missing."
-        )
-
+    if not live_ai_available():
+        raise RuntimeError("Live AI is disabled or its API key is missing.")
     return GuardedClient(OpenAI(
-        api_key=api_key,
+        api_key=os.environ["OPENAI_API_KEY"].strip(),
         timeout=30.0,
         max_retries=0
     ))
@@ -217,7 +207,7 @@ def analyze_question(
     usage = None
     raw = None
     diagnostic = None
-    offline = not enabled or os.getenv("FINSIGHT_LIVE_AI", "1") != "1"
+    offline = not enabled or os.getenv("FINSIGHT_LIVE_AI", "0") != "1"
     if offline:
         selected_model = "Local rule-based demo (no AI request)"
         diagnostic = "Local recommendations used; no live AI request for this analysis."
@@ -264,7 +254,8 @@ def analyze_question(
     plan, plan_diagnostic = complete_plan(synthesis, findings, requested_count(question))
     local_plan = bool(plan_diagnostic and plan != synthesis)
     if plan_diagnostic:
-        diagnostic = '; '.join(x for x in (diagnostic, plan_diagnostic) if x)
+        from finsight.copilot_ui import plan_status
+        diagnostic = plan_status(diagnostic, plan_diagnostic, offline)
     if local_plan:
         synthesis = ''
     commentary, selected_count, invalid = render_themes(findings, None)
@@ -273,7 +264,7 @@ def analyze_question(
     diagnostic = diagnostic or invalid
     if synthesis:
         commentary = synthesis + '\n\n**Calculated supporting findings**\n\n' + commentary
-    answer,count=render_report(registry,commentary)
+    answer,count=render_report(registry,commentary, ai_used=bool(synthesis))
     if direct:
         answer = direct + "\n\n" + answer
     return {"question":question,"answer":answer,"model":selected_model,"active_skills":list(active_skills),

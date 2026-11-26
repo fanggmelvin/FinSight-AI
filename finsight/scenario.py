@@ -16,6 +16,12 @@ def _metrics(r, c):
 
 def run_scenario(question, df):
     q = question.lower().strip().rstrip('?.')
+    # All periods means all currently selected records, never bypass UI filters.
+    suffix = r'\s+(?:across|for|over) all reporting periods$'
+    if re.search(suffix, q):
+        if re.search(r'\b(?:19|20)\d{2}\b', q):
+            raise ValueError('Choose all reporting periods or a specific year, not both.')
+        q = re.sub(suffix, '', q).strip()
     q = re.sub(r'\b(?:in|for)\s+((?:19|20)\d{2})\b', '', q).strip()
     df = scope_data(question, df)
     if df[['revenue','cogs']].isna().any().any():

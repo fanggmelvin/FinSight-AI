@@ -124,7 +124,34 @@ def parse_numeric(series):
     )
 
 
-def validate_financial_data(df, mapping=None):
+def parse_dates(series, excel_epoch=None):
+    # A bare number passed to pandas.to_datetime would otherwise be interpreted
+    # as nanoseconds since 1970. Excel serial dates use the workbook's own epoch.
+    text = series.astype("string").str.strip()
+    numeric = text.str.fullmatch(r"\d+(?:\.\d+)?", na=False)
+    packed = text.str.fullmatch(r"\d{8}", na=False)
+    parsed = pd.to_datetime(text.mask(numeric), format="mixed", errors="coerce", utc=True).dt.tz_localize(None)
+    if packed.any():
+        parsed.loc[packed] = pd.to_datetime(text[packed], format="%Y%m%d", errors="coerce")
+    if excel_epoch is not None:
+        from openpyxl.utils.datetime import from_excel
+
+        def convert(value):
+            number = float(value)
+            if 1900 <= number <= 2100 or not 1 <= number < 2958466:
+                return pd.NaT
+            try:
+                return from_excel(number, epoch=excel_epoch)
+            except (ValueError, OverflowError):
+                return pd.NaT
+
+        serial = numeric & ~packed
+        if serial.any():
+            parsed.loc[serial] = pd.to_datetime(text[serial].map(convert), errors="coerce")
+    return parsed
+
+
+def validate_financial_data(df, mapping=None, *, source_rows=None, excel_epoch=None):
     """Validate and standardize financial data."""
 
     errors = []
@@ -158,6 +185,9 @@ def validate_financial_data(df, mapping=None):
     if mapping is None:
         mapping = detect_columns(df)
 
+    if len(set(mapping.values())) != len(mapping):
+        errors.append("A source column cannot be assigned to multiple financial fields.")
+
     required_fields = [
         "revenue",
         "cogs",
@@ -173,11 +203,7 @@ def validate_financial_data(df, mapping=None):
 
     clean_data = pd.DataFrame(index=df.index)
 
-    # Preserve source row references.
-    # Assumes headers occupy the first Excel row.
-    clean_data["source_row"] = range(
-        2, len(df) + 2
-    )
+    clean_data["source_row"] = range(2, len(df) + 2) if source_rows is None else source_rows
 
     numeric_fields = [
         "revenue",
@@ -221,10 +247,7 @@ def validate_financial_data(df, mapping=None):
 
         elif field == "date":
 
-            clean_data[field] = pd.to_datetime(
-                df[source_column],
-                errors="coerce"
-            )
+            clean_data[field] = parse_dates(df[source_column], excel_epoch)
 
             invalid_dates = int(
                 clean_data[field].isna().sum()

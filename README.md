@@ -172,13 +172,13 @@ Copy-Item .env.example .env
 notepad .env
 ```
 
-Replace the placeholder in `.env` with your own OpenAI API key. Never commit credentials. AI requests can incur charges and transmit calculated financial themes and the question to OpenAI; use non-confidential sample data unless authorized.
+Local analysis works without a key. To enable OpenAI, set `OPENAI_API_KEY` and `FINSIGHT_LIVE_AI=1` in `.env`. Set `FINSIGHT_AI_UPLOADS=1` to make interpretation available for uploads. Select the consent control under **AI Copilot → Settings** before sharing an uploaded workbook’s question or excerpts.
 
 ```powershell
 python -m streamlit run app.py
 ```
 
-Open the local URL printed by Streamlit. In **Data Upload**, select an Excel or CSV financial dataset and validate it. For the case study, use the Microsoft Financial Sample workbook, available from [Microsoft Learn](https://learn.microsoft.com/en-us/power-bi/create-reports/sample-financial-download). The workbook is not bundled in this repository.
+Open the local URL printed by Streamlit. FinSight comes with the sample dataset. Upload an Excel workbook or CSV from **Change dataset** to open its dashboard or explore it in Copilot.
 
 Try these questions in **AI Copilot**:
 
@@ -236,9 +236,22 @@ Built to demonstrate financial analysis, business intelligence, applied AI integ
 **Release:** v0.16.0
 
 
-## Public demonstration mode
+## Deploy on Streamlit Community Cloud
 
-The hosted app automatically validates and loads 700 sample records from the Microsoft Financial Sample workbook. Custom uploads remain available. The public demo runs local financial calculations and rule-based recommendations without OpenAI requests. For private local live AI use, explicitly set `FINSIGHT_LIVE_AI=1` in the shell before starting Streamlit and configure your own API key. Do not enable this flag on an unrestricted public deployment.
+Use `app.py` as the entry point and Python 3.14, the version used by local validation and CI. The app runs in local-analysis mode by default.
+
+For a live demo, add the following root-level settings in the hosted app’s Secrets tab. Use a deployment project key. Keep serving uploaded files locally in a public app.
+
+```toml
+FINSIGHT_LIVE_AI = "1"
+FINSIGHT_AI_UPLOADS = "0"
+OPENAI_API_KEY = "replace-with-your-deployment-project-key"
+OPENAI_MODEL = "gpt-4.1-mini"
+```
+
+For a private deployment where authorized users may share workbook excerpts, restrict the app’s audience and set `FINSIGHT_AI_UPLOADS = "1"`. Each user still opts in for their upload. The app keeps its calculated answer available when OpenAI is unavailable. Review [Streamlit secrets management](https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/secrets-management) and the [shared request limits](API_GUARD.md) before enabling live requests.
+
+Before publishing, run `python -m pip check` and `python -m pytest -q`. The repository CI also runs the Chromium upload and Copilot smoke test.
 
 
 ## v0.17.0 - Modern Fintech Interface

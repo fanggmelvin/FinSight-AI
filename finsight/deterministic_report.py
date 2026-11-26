@@ -17,7 +17,11 @@ def build_facts(registry):
                 facts[f'{eid}.{field}'] = f'{n:+.2f} pp' if record['values'].get('category') == 'Margin Compression' else f'{n:+.2%}'
                 continue
             percent = field in {'growth','variance_pct','revenue_share'} or 'margin' in field or field.endswith(('_pct','_growth'))
-            if percent:
+            if field.endswith('_pp'):
+                shown = f'{n:+,.2f} pp'
+            elif field in {'records', 'record_count'}:
+                shown = f'{n:,.0f}'
+            elif percent:
                 shown = f'{n*100:,.2f}' + (' pp' if 'change' in field else '%')
             else:
                 shown = f'{n:,.2f}'
@@ -25,7 +29,7 @@ def build_facts(registry):
     return facts
 
 
-def render_report(registry, commentary):
+def render_report(registry, commentary, *, ai_used=True):
     facts = build_facts(registry)
     # No free-form model numbers or rankings are admitted into financial facts.
     lines = ['### Calculated financial evidence', 'Values below are calculated from the selected evidence. Monetary values use source currency units.']
@@ -35,7 +39,7 @@ def render_report(registry, commentary):
         if fields:
             title = str(r['title']).replace('\n',' ').replace('|','\\|')
             lines.append(f"- **{title}** [{eid}]: " + '; '.join(f'{k.replace("_"," ")}: {v}' for k,v in fields))
-    lines += ['### AI interpretation and proposed actions', commentary or 'Commentary unavailable; review the calculated evidence above.', '### Limitations', 'Financial figures are rendered from the evidence registry. AI commentary is not independently verified. Contributions do not establish causation.']
+    lines += ['### AI interpretation and proposed actions' if ai_used else '### Management analysis and proposed actions (rule-based)', commentary or 'Commentary unavailable; review the calculated evidence above.', '### Limitations', 'Financial figures are rendered from the evidence registry. AI commentary is not independently verified. Contributions do not establish causation.']
     return '\n\n'.join(lines), len(facts)
 
 
